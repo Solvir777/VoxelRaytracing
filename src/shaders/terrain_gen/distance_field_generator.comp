@@ -1,0 +1,12 @@
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+layout(r16ui, set = 0, binding = 1) readonly uniform uimage3D block_data;
+layout(r16ui, set = 0, binding = 2) writeonly uniform uimage3D block_data;
+
+layout(push_constant) uniform PushConstants {
+    ivec3 chunk_position;
+} push;
+
+
+void main() {
+
+}

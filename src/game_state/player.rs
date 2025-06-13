@@ -12,7 +12,7 @@ impl Player{
     const SPEED: f32 = 5.;
     pub fn new() -> Self {
         Self{
-            position: Vector3::<f32>::zeros(),
+            position: Vector3::<f32>::new(16., 16., 16.),
             rotation: Rotation::zero(),
         }
     }
@@ -54,7 +54,7 @@ impl Player{
     }
 }
 
-struct Rotation {
+pub struct Rotation {
     pitch: f32,
     yaw: f32,
 }

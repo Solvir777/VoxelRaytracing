@@ -17,8 +17,8 @@ impl RenderCore {
     pub(crate) fn new(vulkano_core: &VulkanoCore, settings: &Settings) -> Self {
         let graphics_settings = &settings.graphics_settings;
         let buffers = Buffers::new(vulkano_core, &graphics_settings);
-        let pipelines = Pipelines::new(vulkano_core.device.clone());
-        let swapchain = SwapchainResources::new(vulkano_core, pipelines.raytrace_pipeline.clone(), &buffers);
+        let swapchain = SwapchainResources::new(vulkano_core);
+        let pipelines = Pipelines::new(vulkano_core.device.clone(), &swapchain.swapchain_images, vulkano_core, &buffers);
         Self {
             swapchain_ressources: swapchain,
             buffers,

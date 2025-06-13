@@ -5,7 +5,7 @@ pub struct InputSettings {
 impl InputSettings {
     pub fn standard() -> Self {
         Self {
-            mouse_sensitivity: 0.005,
+            mouse_sensitivity: 0.002,
         }
     }
 }

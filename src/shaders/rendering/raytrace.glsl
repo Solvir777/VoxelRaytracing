@@ -6,7 +6,6 @@ layout(push_constant) uniform PushConstants {
     mat4 cam_transform;
 } push;
 
-const int CHUNK_SIZE = 32;
 
 #include "../util.glsl"
 
@@ -43,10 +42,7 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
 
         pos = ivec3(floor(ro)) + offset * oct_rd11;
 
-        uint block_type = 0;//imageLoad(block_data, rem_euclid_ivec3(pos, voxel_data_size)).r;
-        if(pos.x + pos.y < -10) {
-            block_type = 1;
-        }
+        uint block_type = imageLoad(block_data, rem_euclid_ivec3(pos, voxel_data_size)).r;
         if(block_type > 0) {
             block_id = block_type;
             vec3 normal = vec3(0);
@@ -63,6 +59,7 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
 
 
 vec3 raycast() {
+    const int voxel_data_size = imageSize(block_data).x;
     const vec2 render_img_size = imageSize(render_target).xy;
     const vec2 norm_coordinates = vec2(((gl_GlobalInvocationID.xy) / render_img_size.x) - vec2(0.5, render_img_size.y / render_img_size.x * 0.5));
     const vec3 rd = normalize((vec4(norm_coordinates, 1., 1.) * push.cam_transform).xyz);
