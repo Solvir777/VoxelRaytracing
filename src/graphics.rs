@@ -1,7 +1,6 @@
-use std::sync::Arc;
+use std::time::Instant;
 use nalgebra::Vector3;
-use vulkano::command_buffer::{AutoCommandBufferBuilder, PrimaryCommandBufferAbstract};
-use vulkano::image::Image;
+use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use crate::graphics::render_core::RenderCore;
 use crate::graphics::vulkano_core::VulkanoCore;
 use vulkano::pipeline::Pipeline;
@@ -11,9 +10,8 @@ use winit::event::{DeviceEvent, Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use crate::game_state::GameState;
 use crate::graphics::render_core::swapchain_resources::SwapchainResources;
-use crate::input_state::InputState;
+use crate::input_state::{InputState, KeyState};
 use crate::settings::Settings;
-use crate::shaders;
 use crate::shaders::terrain_gen;
 
 mod allocators;
@@ -27,7 +25,6 @@ pub struct Graphics {
     render_core: RenderCore,
     settings: Settings,
 }
-
 impl Graphics {
     pub const CHUNK_SIZE: u32 = 32;
     pub fn new(settings: Settings) -> (Self, EventLoop<()>) {
@@ -54,6 +51,8 @@ impl Graphics {
         mut input_state: InputState,
         event_loop: EventLoop<()>,
     ) {
+        let mut cursor_confined = true;
+        let mut last_frame = Instant::now();
         self.update_chunks(&mut game_state, None);
         event_loop.run(move |event, _, control_flow|
             {
@@ -83,12 +82,20 @@ impl Graphics {
                     }
                 }
                 Event::RedrawEventsCleared => {
-                    if input_state.is_key_pressed(winit::event::VirtualKeyCode::Escape) {
+                    if input_state.is_key_pressed(winit::event::VirtualKeyCode::Escape, KeyState::Down) {
                         *control_flow = winit::event_loop::ControlFlow::Exit;
+                    }
+                    if input_state.is_key_pressed(winit::event::VirtualKeyCode::Tab, KeyState::Down) {
+                        println!("toggling confined state");
+                        cursor_confined = !cursor_confined;
+                        self.vulkano_core.window.set_cursor_grab(if (cursor_confined) { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
+                        self.vulkano_core.window.set_cursor_visible(!cursor_confined);
                     }
                     let old_chunk_pos = game_state.get_player_chunk();
 
-                    game_state.update(&input_state, &self.settings);
+
+                    game_state.update(&input_state, &self.settings, last_frame.elapsed().as_secs_f32());
+                    last_frame = Instant::now();
 
                     self.update_chunks(&mut game_state, Some(old_chunk_pos));
 
@@ -228,16 +235,12 @@ impl Graphics {
         self.generate_chunk(chunk_position);
     }
 
+    //noinspection RsUnresolvedPath
     fn generate_chunk(&mut self, chunk_position: Vector3<i32>) {
-        let queue = self.vulkano_core.queue.clone();
-
-
         let push_constants = terrain_gen::PushConstants{
             chunk_position: chunk_position.into(),
         };
-
-
-
+        
         let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
             &self.vulkano_core.allocators.commmand_buffer,
             self.vulkano_core.queue.queue_family_index(),
@@ -267,7 +270,7 @@ impl Graphics {
                 self.render_core.pipelines.terrain_generator_pipeline.descriptor_set.clone(),
             )
             .unwrap()
-            .dispatch([Self::CHUNK_SIZE; 3])
+            .dispatch([Self::CHUNK_SIZE / 8; 3])
             .unwrap();
 
 

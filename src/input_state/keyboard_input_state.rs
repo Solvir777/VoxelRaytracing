@@ -17,6 +17,11 @@ impl KeyboardInputState {
     }
 
     pub fn update(&mut self, keyboard_input: KeyboardInput) {
+        // ignore unknown keypresses
+        if keyboard_input.virtual_keycode.is_none() {
+            return;
+        }
+
         match keyboard_input.state {
             ElementState::Pressed => {
                 self.held_keys.insert(keyboard_input.virtual_keycode.unwrap());

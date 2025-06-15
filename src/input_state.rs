@@ -10,6 +10,11 @@ pub struct InputState {
     pub mouse: MouseInputState,
 }
 
+pub enum KeyState {
+    Down,
+    Up,
+    Held,
+}
 
 impl InputState {
     pub fn new() -> Self {
@@ -18,8 +23,12 @@ impl InputState {
             mouse: MouseInputState::new(),
         }
     }
-    pub fn is_key_pressed(&self, key_code: winit::event::VirtualKeyCode) -> bool {
-        self.keyboard.key_held(key_code)
+    pub fn is_key_pressed(&self, key_code: winit::event::VirtualKeyCode, key_state: KeyState) -> bool {
+        match key_state {
+            KeyState::Down => {self.keyboard.key_down(key_code)}
+            KeyState::Up => {self.keyboard.key_up(key_code)}
+            KeyState::Held => {self.keyboard.key_held(key_code)}
+        }
     }
 
     pub fn update_keys(&mut self, keyboard_input: KeyboardInput) {

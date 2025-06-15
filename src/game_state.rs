@@ -28,9 +28,9 @@ impl GameState {
             player: Player::new(),
         }
     }
-    pub fn update(&mut self, input_state: &InputState, settings: &Settings) {
+    pub fn update(&mut self, input_state: &InputState, settings: &Settings, delta_time: f32) {
         self.player.pan(input_state, settings);
-        self.player.movement(input_state);
+        self.player.movement(input_state, delta_time);
     }
 
     pub fn get_player_chunk(&self) -> Vector3<i32> {

@@ -1,7 +1,7 @@
 #version 460
 #extension GL_EXT_debug_printf : enable
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 layout(r16ui, set = 0, binding = 0) writeonly uniform uimage3D block_data;
 
 layout(push_constant) uniform PushConstants {
@@ -14,14 +14,8 @@ layout(push_constant) uniform PushConstants {
 int voxel_data_size = int(imageSize(block_data).x);
 
 void main() {
-
-    ivec3 in_world_position = push.chunk_position * int(CHUNK_SIZE) + ivec3(gl_GlobalInvocationID);
+    ivec3 in_world_position = push.chunk_position * CHUNK_SIZE + ivec3(gl_GlobalInvocationID);
     uint block_type = terrain_function(in_world_position);
-
-
-    if(gl_GlobalInvocationID == uvec3(0) && push.chunk_position.y == 0) {
-        debugPrintfEXT("writing chunk: %v3i to position: %v3i in array", push.chunk_position, rem_euclid_ivec3(in_world_position, voxel_data_size) / 32);
-    }
 
     imageStore(block_data, rem_euclid_ivec3(in_world_position, voxel_data_size), uvec4(block_type));
 }

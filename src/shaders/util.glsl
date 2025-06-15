@@ -1,8 +1,7 @@
 const int CHUNK_SIZE = 32;
 
 int rem_euclid_int(int dividend, int divisor) {
-    int r = dividend % divisor;
-    return r >= 0 ? r : r + divisor;
+    return int(mod(dividend, divisor));
 }
 
 ivec3 rem_euclid_ivec3(ivec3 dividend, int divisor){

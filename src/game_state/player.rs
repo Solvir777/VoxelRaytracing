@@ -1,6 +1,6 @@
 use nalgebra::{Rotation3, Vector3};
 use winit::event::VirtualKeyCode;
-use crate::input_state::InputState;
+use crate::input_state::{InputState, KeyState};
 use crate::settings::Settings;
 
 pub struct Player{
@@ -9,7 +9,7 @@ pub struct Player{
 }
 
 impl Player{
-    const SPEED: f32 = 5.;
+    const SPEED: f32 = 15.;
     pub fn new() -> Self {
         Self{
             position: Vector3::<f32>::new(16., 16., 16.),
@@ -21,15 +21,15 @@ impl Player{
         self.rotation.to_rotation_matrix()
     }
 
-    pub fn movement(&mut self, input_state: &InputState) {
+    pub fn movement(&mut self, input_state: &InputState, delta_time: f32) {
         let (w, a, s, d, up_key, down_key) =
             (
-                input_state.is_key_pressed(VirtualKeyCode::W),
-                input_state.is_key_pressed(VirtualKeyCode::A),
-                input_state.is_key_pressed(VirtualKeyCode::S),
-                input_state.is_key_pressed(VirtualKeyCode::D),
-                input_state.is_key_pressed(VirtualKeyCode::Space),
-                input_state.is_key_pressed(VirtualKeyCode::LShift),
+                input_state.is_key_pressed(VirtualKeyCode::W, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::A, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::S, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::D, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::Space, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::LShift, KeyState::Held),
             );
 
         let up = Vector3::new(0., 1., 0.);
@@ -44,7 +44,8 @@ impl Player{
         if up_key {movement += up}
         if down_key {movement -= up}
 
-        movement = movement.cap_magnitude(Self::SPEED);
+        movement = movement.cap_magnitude(1.);
+        movement *= delta_time * Player::SPEED;
         self.position += movement;
     }
     pub fn pan(&mut self, input_state: &InputState, settings: &Settings) {
