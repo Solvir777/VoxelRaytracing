@@ -11,7 +11,7 @@ use vulkano::pipeline::Pipeline;
 use vulkano::sync;
 use vulkano::sync::GpuFuture;
 use winit::event::{DeviceEvent, Event, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 use crate::game_state::GameState;
 use crate::game_state::terrain::chunk::Chunk;
 use crate::graphics::render_core::swapchain_resources::SwapchainResources;
@@ -26,9 +26,10 @@ mod vulkano_core;
 
 pub struct Graphics {
     previous_frame_end: Option<Box<dyn GpuFuture>>,
-    vulkano_core: VulkanoCore,
+    pub vulkano_core: VulkanoCore,
     render_core: RenderCore,
-    settings: Settings,
+    pub(crate) settings: Settings,
+    cursor_confined: bool
 }
 impl Graphics {
     pub const CHUNK_SIZE: u32 = 32;
@@ -45,19 +46,21 @@ impl Graphics {
                 vulkano_core,
                 render_core,
                 settings,
+                cursor_confined: false,
             },
             event_loop
         )
     }
 
-    pub fn run(
+    pub fn run<F>(
         mut self,
         mut game_state: GameState,
         mut input_state: InputState,
         event_loop: EventLoop<()>,
-    ) {
-        let mut cursor_confined = true;
-        let mut last_frame = Instant::now();
+        mut update: F,
+    )
+    where F: FnMut(&mut GameState, &InputState, &mut Self, &mut ControlFlow) + 'static
+    {
         self.update_chunks(&mut game_state, None);
         event_loop.run(move |event, _, control_flow|
             {
@@ -87,23 +90,11 @@ impl Graphics {
                     }
                 }
                 Event::RedrawEventsCleared => {
-                    if input_state.is_key_pressed(winit::event::VirtualKeyCode::Escape, KeyState::Down) {
-                        *control_flow = winit::event_loop::ControlFlow::Exit;
-                    }
-                    if input_state.is_key_pressed(winit::event::VirtualKeyCode::Tab, KeyState::Down) {
-                        println!("toggling confined state");
-                        cursor_confined = !cursor_confined;
-                        self.vulkano_core.window.set_cursor_grab(if cursor_confined { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
-                        self.vulkano_core.window.set_cursor_visible(!cursor_confined);
-                    }
                     let old_chunk_pos = game_state.get_player_chunk();
-
-
-                    game_state.update(&input_state, &self.settings, last_frame.elapsed().as_secs_f32());
-                    last_frame = Instant::now();
-
+                    update(&mut game_state, &input_state, &mut self, control_flow);
                     self.update_chunks(&mut game_state, Some(old_chunk_pos));
 
+                    
                     self.draw_frame(&game_state);
                     input_state.refresh();
                     unsafe {self.vulkano_core.device.clone().wait_idle().unwrap()}
@@ -216,6 +207,10 @@ impl Graphics {
                 return;
             }
         }
+        let timer = Instant::now();
+        self.wait_and_reset_last_frame_end();
+        println!("waited {} secs for rendering to finish", timer.elapsed().as_secs_f32());
+        
         let gen_dist = self.settings.graphics_settings.render_distance as i32;
         for x in (-gen_dist)..=gen_dist {
             for y in (-gen_dist)..=gen_dist {
@@ -233,7 +228,7 @@ impl Graphics {
                 }
             }
         }
-        
+        println!("time to generate all chunks: {}", timer.elapsed().as_secs_f32());
         self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
     }
     /// Checks whether the chunk is contained in the Terrain struct, if not creates and inserts it. TODO
@@ -248,13 +243,6 @@ impl Graphics {
     }
     /// Send a stored chunk to the gpu
     fn chunk_to_gpu(&mut self, chunk_position: Vector3<i32>, chunk_data: &Chunk) {
-        if let Some(future) = self.previous_frame_end.take() {
-            if future.queue().is_some() {
-                future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
-            }
-        }
-        
-        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
         
         let staging_buffer = Buffer::from_data(
             self.vulkano_core.allocators.memory.clone(),
@@ -405,6 +393,19 @@ impl Graphics {
         
         
         self.previous_frame_end = Some(future.boxed());
+    }
+    
+    fn wait_and_reset_last_frame_end(&mut self) {
+        if let Some(future) = self.previous_frame_end.take() && future.queue().is_some() { 
+            future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+        }
+
+        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
+    }
+    pub fn toggle_confine(&mut self) {
+        self.cursor_confined = !self.cursor_confined;
+        self.vulkano_core.window.set_cursor_grab(if self.cursor_confined { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
+        self.vulkano_core.window.set_cursor_visible(!self.cursor_confined);
     }
 }
 
