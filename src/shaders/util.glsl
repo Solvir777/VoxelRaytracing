@@ -45,3 +45,4 @@ int argmin(vec3 args) {
 
     return min_index;
 }
+

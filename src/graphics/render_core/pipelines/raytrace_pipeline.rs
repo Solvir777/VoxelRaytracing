@@ -8,10 +8,19 @@ use vulkano::pipeline::layout::{
 };
 use vulkano::pipeline::{ComputePipeline, PipelineLayout, PipelineShaderStageCreateInfo};
 use vulkano::shader::ShaderStages;
+use crate::settings::graphics_settings::GraphicsSettings;
 
-pub fn create_raytrace_pipeline(device: Arc<Device>) -> Arc<ComputePipeline> {
+pub fn create_raytrace_pipeline(device: Arc<Device>, graphics_settings: &GraphicsSettings) -> Arc<ComputePipeline> {
     let compute_shader = shaders::rendering::load(device.clone()).unwrap();
-    let entry_point = compute_shader.entry_point("main").unwrap();
+    
+    let entry_point = compute_shader
+        .specialize(
+            [(0, (graphics_settings.render_distance as i32).into())]
+                .into_iter()
+                .collect(),
+        )
+        .unwrap()
+        .entry_point("main").unwrap();
     let stage_info = PipelineShaderStageCreateInfo::new(entry_point);
 
     let layout = PipelineLayout::new(

@@ -1,6 +1,8 @@
 use std::time::Instant;
 use nalgebra::Vector3;
 use vulkano::command_buffer::PrimaryCommandBufferAbstract;
+use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::view::ImageView;
 use crate::graphics::render_core::RenderCore;
 use crate::graphics::vulkano_core::VulkanoCore;
 use vulkano::pipeline::Pipeline;
@@ -199,7 +201,7 @@ impl Graphics {
     }
 
     fn recreate_swapchain_if_needed(&mut self) {
-        if!self.render_core.swapchain_ressources.recreate_swapchain {
+        if !self.render_core.swapchain_ressources.recreate_swapchain {
             return;
         }
         SwapchainResources::recreate_swapchain(self);
@@ -228,6 +230,11 @@ impl Graphics {
                 }
             }
         }
+        
+        self.previous_frame_end.take().unwrap().then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+        
+        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
+        
     }
     /// Checks whether the chunk is contained in the Terrain struct, if not creates and inserts it. TODO
     /// Then the chunk is uploaded to the gpu
@@ -240,6 +247,21 @@ impl Graphics {
         let push_constants = terrain_gen::PushConstants{
             chunk_position: chunk_position.into(),
         };
+
+        let render_sl = 2 * self.settings.graphics_settings.render_distance as i32 + 1;
+        let chunk_index = chunk_position.map(
+            |x| 
+                x.rem_euclid(render_sl)
+        ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize;
+        
+        let descriptor_set = PersistentDescriptorSet::new(
+            &self.vulkano_core.allocators.descriptor_set,
+            self.render_core.pipelines.terrain_generator_pipeline.pipeline.layout().set_layouts()[0].clone(),
+            [
+                WriteDescriptorSet::image_view(0, ImageView::new_default(self.render_core.buffers.block_data_buffers[chunk_index].clone()).unwrap()),
+            ],
+            [],
+        ).unwrap();
         
         let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
             &self.vulkano_core.allocators.commmand_buffer,
@@ -247,8 +269,7 @@ impl Graphics {
             vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit,
         )
             .unwrap();
-
-
+        
         builder
             .bind_pipeline_compute(self.render_core.pipelines.terrain_generator_pipeline.pipeline.clone())
             .unwrap()
@@ -267,7 +288,7 @@ impl Graphics {
                 vulkano::pipeline::PipelineBindPoint::Compute,
                 self.render_core.pipelines.terrain_generator_pipeline.pipeline.layout().clone(),
                 0,
-                self.render_core.pipelines.terrain_generator_pipeline.descriptor_set.clone(),
+                descriptor_set,
             )
             .unwrap()
             .dispatch([Self::CHUNK_SIZE / 8; 3])
@@ -284,6 +305,7 @@ impl Graphics {
             .unwrap()
             .then_signal_fence_and_flush()
             .unwrap();
+        
         
         self.previous_frame_end = Some(future.boxed());
     }

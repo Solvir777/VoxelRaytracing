@@ -18,7 +18,7 @@ impl RenderCore {
         let graphics_settings = &settings.graphics_settings;
         let buffers = Buffers::new(vulkano_core, &graphics_settings);
         let swapchain = SwapchainResources::new(vulkano_core);
-        let pipelines = Pipelines::new(vulkano_core.device.clone(), &swapchain.swapchain_images, vulkano_core, &buffers);
+        let pipelines = Pipelines::new(vulkano_core.device.clone(), &swapchain.swapchain_images, vulkano_core, &buffers, &settings.graphics_settings);
         Self {
             swapchain_ressources: swapchain,
             buffers,

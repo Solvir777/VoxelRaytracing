@@ -2,7 +2,7 @@ use crate::graphics::allocators::Allocators;
 use std::sync::Arc;
 use std::time::Duration;
 use vulkano::VulkanLibrary;
-use vulkano::device::{Device, Queue};
+use vulkano::device::{Device, Features, Queue};
 use vulkano::instance::Instance;
 use vulkano::swapchain::Surface;
 use winit::event_loop::EventLoop;
@@ -54,7 +54,6 @@ impl VulkanoCore {
 
         window.set_cursor_grab(CursorGrabMode::Confined).expect("Couldn't confine Cursor!");
         window.set_cursor_visible(false);
-        window.set_cursor_hittest(false);
 
         let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
 
@@ -67,10 +66,17 @@ impl VulkanoCore {
         let (physical_device, queue_family_index) =
             get_physical_device(instance, &surface, &device_extensions);
 
+        let features = Features{
+            runtime_descriptor_array: true,
+            ..Features::default()
+        };
+        
+        
         let (device, mut queues) = Device::new(
             physical_device,
             vulkano::device::DeviceCreateInfo {
                 enabled_extensions: device_extensions,
+                enabled_features: features,
                 queue_create_infos: vec![vulkano::device::QueueCreateInfo {
                     queue_family_index,
                     ..Default::default()

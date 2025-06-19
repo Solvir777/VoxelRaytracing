@@ -1,5 +1,7 @@
+layout (constant_id = 0) const int render_distance = 4;
+
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-layout(r16ui, set = 0, binding = 1) readonly uniform uimage3D block_data;
+layout(r16ui, set = 0, binding = 1) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
 //layout(r16ui, set = 0, binding = 2) readonly uniform uimage3D distance_data;
 
 layout(push_constant) uniform PushConstants {
@@ -12,12 +14,24 @@ layout(push_constant) uniform PushConstants {
 const vec3[] debug_colors = {vec3(1., 0., 0.), vec3(0., 1., 0.), vec3(0., 0., 1.)};
 
 vec3 player_position = push.cam_transform[3].xyz;
-int voxel_data_size = imageSize(block_data).x;
+
+uint read_value(ivec3 pos, uint render_dist) {
+    uint chunks_length = render_dist * 2 + 1;
+    ivec3 storage_pos = rem_euclid_ivec3(pos, int(chunks_length) * CHUNK_SIZE);
+    ivec3 in_chunk_pos = rem_euclid_ivec3(pos, CHUNK_SIZE);
+
+    uvec3 chunk_address = uvec3(floor(storage_pos / CHUNK_SIZE));
+    uint chunk_index = uint(dot(chunk_address, ivec3(1, chunks_length, chunks_length * chunks_length)));
+
+    uint value = imageLoad(block_data[chunk_index], in_chunk_pos).x;
+    return value;
+}
+
 
 bool is_inside_loaded_area(ivec3 pos) {
     ivec3 player_chunk_middle = ivec3(floor(player_position / float(CHUNK_SIZE))) * CHUNK_SIZE + CHUNK_SIZE / 2;
-    ivec3 lower_bound = player_chunk_middle - imageSize(block_data) / 2;
-    ivec3 upper_bound = player_chunk_middle + imageSize(block_data) / 2 - ivec3(1);
+    ivec3 lower_bound = player_chunk_middle - CHUNK_SIZE * render_distance - CHUNK_SIZE / 2;
+    ivec3 upper_bound = player_chunk_middle + CHUNK_SIZE * render_distance + CHUNK_SIZE / 2 - 1;
     return all(lessThan(lower_bound, pos)) && all(lessThan(pos, upper_bound));
 }
 
@@ -42,7 +56,7 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
 
         pos = ivec3(floor(ro)) + offset * oct_rd11;
 
-        uint block_type = imageLoad(block_data, rem_euclid_ivec3(pos, voxel_data_size)).r;
+        uint block_type = read_value(pos, render_distance);
         if(block_type > 0) {
             block_id = block_type;
             vec3 normal = vec3(0);
@@ -59,7 +73,6 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
 
 
 vec3 raycast() {
-    const int voxel_data_size = imageSize(block_data).x;
     const vec2 render_img_size = imageSize(render_target).xy;
     const vec2 norm_coordinates = vec2(((gl_GlobalInvocationID.xy) / render_img_size.x) - vec2(0.5, render_img_size.y / render_img_size.x * 0.5));
     const vec3 rd = normalize((vec4(norm_coordinates, 1., 1.) * push.cam_transform).xyz);
