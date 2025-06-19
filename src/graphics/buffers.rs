@@ -19,7 +19,7 @@ impl Buffers {
     
     pub fn get_chunk_image_views(&self) -> Vec<Arc<ImageView>>{
         self.block_data_buffers.iter().map(
-            |x| 
+            |x|
                 ImageView::new_default(x.clone()).unwrap()
         ).collect::<Vec<_>>()
     }
@@ -34,7 +34,7 @@ fn create_block_data_buffers(
         image_type: vulkano::image::ImageType::Dim3d,
         format: Format::R16_UINT,
         extent: [Graphics::CHUNK_SIZE; 3],
-        usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_DST,
+        usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
         ..Default::default()
     };
 

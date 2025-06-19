@@ -1,8 +1,10 @@
 use std::time::Instant;
 use nalgebra::Vector3;
-use vulkano::command_buffer::PrimaryCommandBufferAbstract;
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo, CopyImageToBufferInfo};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::view::ImageView;
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use crate::graphics::render_core::RenderCore;
 use crate::graphics::vulkano_core::VulkanoCore;
 use vulkano::pipeline::Pipeline;
@@ -11,6 +13,7 @@ use vulkano::sync::GpuFuture;
 use winit::event::{DeviceEvent, Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use crate::game_state::GameState;
+use crate::game_state::terrain::chunk::Chunk;
 use crate::graphics::render_core::swapchain_resources::SwapchainResources;
 use crate::input_state::{InputState, KeyState};
 use crate::settings::Settings;
@@ -90,7 +93,7 @@ impl Graphics {
                     if input_state.is_key_pressed(winit::event::VirtualKeyCode::Tab, KeyState::Down) {
                         println!("toggling confined state");
                         cursor_confined = !cursor_confined;
-                        self.vulkano_core.window.set_cursor_grab(if (cursor_confined) { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
+                        self.vulkano_core.window.set_cursor_grab(if cursor_confined { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
                         self.vulkano_core.window.set_cursor_visible(!cursor_confined);
                     }
                     let old_chunk_pos = game_state.get_player_chunk();
@@ -231,15 +234,113 @@ impl Graphics {
             }
         }
         
-        self.previous_frame_end.take().unwrap().then_signal_fence_and_flush().unwrap().wait(None).unwrap();
-        
         self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
-        
     }
     /// Checks whether the chunk is contained in the Terrain struct, if not creates and inserts it. TODO
     /// Then the chunk is uploaded to the gpu
     fn upload_chunk(&mut self, game_state: &mut GameState, chunk_position: Vector3<i32>) {
+       if let Some(chunk) = game_state.terrain.chunks.get(&chunk_position) {
+           self.chunk_to_gpu(chunk_position, chunk);
+           return;
+       } 
         self.generate_chunk(chunk_position);
+        self.chunk_from_gpu(game_state, chunk_position);
+    }
+    /// Send a stored chunk to the gpu
+    fn chunk_to_gpu(&mut self, chunk_position: Vector3<i32>, chunk_data: &Chunk) {
+        if let Some(future) = self.previous_frame_end.take() {
+            if future.queue().is_some() {
+                future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+            }
+        }
+        
+        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
+        
+        let staging_buffer = Buffer::from_data(
+            self.vulkano_core.allocators.memory.clone(),
+            BufferCreateInfo{
+                usage: BufferUsage::TRANSFER_SRC | BufferUsage::STORAGE_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo{
+                memory_type_filter: MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                ..Default::default()
+            },
+            chunk_data.to_raw_data()
+        ).unwrap();
+        
+        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
+        
+        let buffer_to_image = CopyBufferToImageInfo::buffer_image(
+            staging_buffer,
+            self.render_core.buffers.block_data_buffers[chunk_index].clone(),
+        );
+        
+        let mut builder = AutoCommandBufferBuilder::primary(
+            &self.vulkano_core.allocators.commmand_buffer,
+            self.vulkano_core.queue.queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit
+        ).unwrap();
+        
+        builder
+            .copy_buffer_to_image(buffer_to_image)
+            .unwrap();
+        
+        let command_buffer = builder.build().unwrap();
+        
+        let future = self.previous_frame_end.take().unwrap()
+            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
+            .unwrap();
+        
+        self.previous_frame_end = Some(future.boxed());
+    }
+    /// Read back a chunk from the gpu and fill it into Terrain struct
+    fn chunk_from_gpu(&mut self, game_state: &mut GameState, chunk_position: Vector3<i32>) {
+        let staging_buffer = Buffer::from_data(
+            self.vulkano_core.allocators.memory.clone(),
+            BufferCreateInfo{
+                usage: BufferUsage::TRANSFER_DST | BufferUsage::STORAGE_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo{
+                memory_type_filter: MemoryTypeFilter::HOST_RANDOM_ACCESS,
+                ..Default::default()
+            },
+            [0u16; Graphics::CHUNK_SIZE as usize * Graphics::CHUNK_SIZE as usize * Graphics::CHUNK_SIZE as usize]
+        ).unwrap();
+
+        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
+
+        let image_to_buffer = CopyImageToBufferInfo::image_buffer(
+            self.render_core.buffers.block_data_buffers[chunk_index].clone(),
+            staging_buffer.clone()
+        );
+
+        let mut builder = AutoCommandBufferBuilder::primary(
+            &self.vulkano_core.allocators.commmand_buffer,
+            self.vulkano_core.queue.queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit
+        ).unwrap();
+
+        builder
+            .copy_image_to_buffer(image_to_buffer)
+            .unwrap();
+
+        let command_buffer = builder.build().unwrap();
+
+        let future = self.previous_frame_end.take().unwrap()
+            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
+            .unwrap();
+
+        future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+        
+        let chunk_data = staging_buffer.read().unwrap();
+        
+        let chunk = Chunk::from_raw_data(chunk_data.as_slice());
+        
+        game_state.terrain.chunks.insert(chunk_position, chunk);
+        
+        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
     }
 
     //noinspection RsUnresolvedPath
@@ -247,13 +348,9 @@ impl Graphics {
         let push_constants = terrain_gen::PushConstants{
             chunk_position: chunk_position.into(),
         };
-
-        let render_sl = 2 * self.settings.graphics_settings.render_distance as i32 + 1;
-        let chunk_index = chunk_position.map(
-            |x| 
-                x.rem_euclid(render_sl)
-        ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize;
         
+        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
+
         let descriptor_set = PersistentDescriptorSet::new(
             &self.vulkano_core.allocators.descriptor_set,
             self.render_core.pipelines.terrain_generator_pipeline.pipeline.layout().set_layouts()[0].clone(),
@@ -266,7 +363,7 @@ impl Graphics {
         let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
             &self.vulkano_core.allocators.commmand_buffer,
             self.vulkano_core.queue.queue_family_index(),
-            vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit,
+            CommandBufferUsage::OneTimeSubmit,
         )
             .unwrap();
         
@@ -309,4 +406,14 @@ impl Graphics {
         
         self.previous_frame_end = Some(future.boxed());
     }
+}
+
+
+
+fn chunk_buffer_index(chunk_position: Vector3<i32>, settings: &Settings) -> usize {
+    let render_sl = 2 * settings.graphics_settings.render_distance as i32 + 1;
+    chunk_position.map(
+        |x|
+            x.rem_euclid(render_sl)
+    ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
 }

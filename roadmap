@@ -1,4 +1,10 @@
-descructible/buildable Terrain
+TO DO:
+descructible/buildable Terrain*
 smooth Voxels (triquadratic interpolation)
 collisions system
 chebyshev distance accelerated rendering
+fov
+
+
+DONE:
+overhaul chunk management (multiple chunk images rather than one)

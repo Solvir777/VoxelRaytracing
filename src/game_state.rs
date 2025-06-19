@@ -1,8 +1,9 @@
 mod player;
-mod terrain;
+pub mod terrain;
 
 use nalgebra::Vector3;
 use crate::game_state::player::Player;
+use crate::game_state::terrain::Terrain;
 use crate::graphics::Graphics;
 use crate::input_state::InputState;
 use crate::settings::Settings;
@@ -10,6 +11,7 @@ use crate::shaders::rendering::PushConstants;
 
 pub struct GameState {
     pub player: Player,
+    pub terrain: Terrain,
 }
 
 impl GameState {
@@ -26,6 +28,7 @@ impl GameState {
     pub fn new() -> Self {
         Self {
             player: Player::new(),
+            terrain: Terrain::empty(),
         }
     }
     pub fn update(&mut self, input_state: &InputState, settings: &Settings, delta_time: f32) {

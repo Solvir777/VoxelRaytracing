@@ -9,7 +9,7 @@ pub struct Player{
 }
 
 impl Player{
-    const SPEED: f32 = 15.;
+    const SPEED: f32 = 125.;
     pub fn new() -> Self {
         Self{
             position: Vector3::<f32>::new(16., 16., 16.),
