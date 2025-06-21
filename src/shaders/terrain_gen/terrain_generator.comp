@@ -1,9 +1,16 @@
 #version 460
 #extension GL_EXT_debug_printf : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_shader_16bit_storage : enable
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
-layout(r16ui, set = 0, binding = 0) writeonly uniform uimage3D block_data;
+
+#include "../util.glsl"
+#include "terrain_function.glsl"
+
+layout(set = 0, binding = 0) writeonly buffer ChunkData {
+    uint16_t block_data[CHUNK_VOLUME];
+} data;
 
 
 layout(push_constant) uniform PushConstants {
@@ -11,12 +18,14 @@ layout(push_constant) uniform PushConstants {
 } push;
 
 
-#include "../util.glsl"
-#include "terrain_function.glsl"
 
+uint compute_1D_index() {
+    return uint(dot(gl_GlobalInvocationID, ivec3(1, CHUNK_SIZE, CHUNK_SIZE * CHUNK_SIZE)));
+}
 
 void main() {
     ivec3 in_world_position = push.chunk_position * CHUNK_SIZE + ivec3(gl_GlobalInvocationID);
     uint block_type = terrain_function(in_world_position);
-    imageStore(block_data, ivec3(gl_GlobalInvocationID), uvec4(block_type));
+
+    data.block_data[compute_1D_index()] = uint16_t(block_type);
 }

@@ -1,10 +1,10 @@
 TO DO:
-descructible/buildable Terrain*
+descructible/buildable Terrain
 smooth Voxels (triquadratic interpolation)
 collisions system
 chebyshev distance accelerated rendering
 fov
-
+cpu side chunks as host_local buffers*
 
 DONE:
 overhaul chunk management (multiple chunk images rather than one)

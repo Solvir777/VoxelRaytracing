@@ -68,6 +68,8 @@ impl VulkanoCore {
 
         let features = Features{
             runtime_descriptor_array: true,
+            uniform_and_storage_buffer16_bit_access: true,
+            storage_buffer16_bit_access: true,
             ..Features::default()
         };
         
@@ -120,7 +122,7 @@ pub fn get_physical_device(
                 .enumerate()
                 .position(|(i, q)| {
                     q.queue_flags
-                        .intersects(vulkano::device::QueueFlags::GRAPHICS)
+                        .intersects(vulkano::device::QueueFlags::COMPUTE)
                         && p.surface_support(i as u32, &surface).unwrap_or(false)
                 })
                 .map(|i| (p, i as u32))

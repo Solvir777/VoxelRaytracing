@@ -4,9 +4,20 @@ uint terrain_function(ivec3 pos) {
 
     float noise_value = snoise(noise_pos) * 15.;
     noise_value -= length(pos);
-    
+
     uint block_type = 0;
     if (noise_value - pos.y > 0.) {
+        block_type = 1;
+    }
+
+    return block_type;
+}
+
+uint terrain_function2(ivec3 pos) {
+    vec3 noise_pos = vec3(pos) * 1.;
+
+    uint block_type = 0;
+    if (length(noise_pos) < 25.) {
         block_type = 1;
     }
 

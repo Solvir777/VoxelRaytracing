@@ -1,4 +1,5 @@
 const int CHUNK_SIZE = 32;
+const int CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 int rem_euclid_int(int dividend, int divisor) {
     return int(mod(dividend, divisor));
@@ -45,4 +46,3 @@ int argmin(vec3 args) {
 
     return min_index;
 }
-

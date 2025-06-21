@@ -1,8 +1,11 @@
+use crate::shaders::rendering::PushConstants;
+use std::sync::Arc;
 use std::time::Instant;
 use nalgebra::Vector3;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo, CopyImageToBufferInfo};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::image::Image;
 use vulkano::image::view::ImageView;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use crate::graphics::render_core::RenderCore;
@@ -13,7 +16,7 @@ use vulkano::sync::GpuFuture;
 use winit::event::{DeviceEvent, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use crate::game_state::GameState;
-use crate::game_state::terrain::chunk::Chunk;
+use crate::game_state::terrain::ChunkBuffer;
 use crate::graphics::render_core::swapchain_resources::SwapchainResources;
 use crate::input_state::{InputState, KeyState};
 use crate::settings::Settings;
@@ -27,12 +30,13 @@ mod vulkano_core;
 pub struct Graphics {
     previous_frame_end: Option<Box<dyn GpuFuture>>,
     pub vulkano_core: VulkanoCore,
-    render_core: RenderCore,
+    pub(crate) render_core: RenderCore,
     pub(crate) settings: Settings,
     cursor_confined: bool
 }
 impl Graphics {
     pub const CHUNK_SIZE: u32 = 32;
+    pub const CHUNK_VOLUME: u32 = Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE;
     pub fn new(settings: Settings) -> (Self, EventLoop<()>) {
         let (vulkano_core, event_loop) = VulkanoCore::new();
 
@@ -72,7 +76,7 @@ impl Graphics {
                         }
                         WindowEvent::CloseRequested{ .. } => {
                             println!("Close Requested!");
-                            *control_flow = winit::event_loop::ControlFlow::Exit;
+                            *control_flow = ControlFlow::Exit;
                         }
                         _ => {}
                     }
@@ -90,6 +94,7 @@ impl Graphics {
                     }
                 }
                 Event::RedrawEventsCleared => {
+
                     let old_chunk_pos = game_state.get_player_chunk();
                     update(&mut game_state, &input_state, &mut self, control_flow);
                     self.update_chunks(&mut game_state, Some(old_chunk_pos));
@@ -124,7 +129,7 @@ impl Graphics {
                     self.recreate_swapchain();
                     return;
                 }
-                Err(e) => panic!("failed to acquire next image: {e}"),
+                Err(e) => panic!("failed to acquire next image: {:?}", e),
             };
 
         if suboptimal {
@@ -134,7 +139,7 @@ impl Graphics {
         let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
             &self.vulkano_core.allocators.commmand_buffer,
             self.vulkano_core.queue.queue_family_index(),
-            vulkano::command_buffer::CommandBufferUsage::OneTimeSubmit,
+            CommandBufferUsage::OneTimeSubmit,
         )
         .unwrap();
 
@@ -189,7 +194,7 @@ impl Graphics {
                 self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
             }
             Err(e) => {
-                panic!("failed to flush future: {e}");
+                panic!("failed to flush future: {:?}", e);
             }
         }
     }
@@ -202,10 +207,8 @@ impl Graphics {
     }
 
     fn update_chunks(&mut self, game_state: &mut GameState, old_chunk_pos: Option<Vector3<i32>>) {
-        if let Some(old_pos) = old_chunk_pos {
-            if old_pos == game_state.get_player_chunk() {
-                return;
-            }
+        if let Some(old_pos) = old_chunk_pos && old_pos == game_state.get_player_chunk() {
+            return;
         }
         let timer = Instant::now();
         self.wait_and_reset_last_frame_end();
@@ -215,6 +218,7 @@ impl Graphics {
         for x in (-gen_dist)..=gen_dist {
             for y in (-gen_dist)..=gen_dist {
                 for z in (-gen_dist)..=gen_dist {
+                    self.wait_and_reset_last_frame_end();
                     let chunk_pos = (game_state.get_player_chunk() + Vector3::new(x, y, z)) as Vector3<i32>;
                     //update this chunk if there was no previous chunk or if it left the players chunk range
                     let update_chunk = match old_chunk_pos {
@@ -223,7 +227,7 @@ impl Graphics {
                     };
 
                     if update_chunk {
-                        self.upload_chunk(game_state, chunk_pos);
+                        game_state.terrain.upload_chunk(self, chunk_pos);
                     }
                 }
             }
@@ -231,119 +235,30 @@ impl Graphics {
         println!("time to generate all chunks: {}", timer.elapsed().as_secs_f32());
         self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
     }
-    /// Checks whether the chunk is contained in the Terrain struct, if not creates and inserts it. TODO
-    /// Then the chunk is uploaded to the gpu
-    fn upload_chunk(&mut self, game_state: &mut GameState, chunk_position: Vector3<i32>) {
-       if let Some(chunk) = game_state.terrain.chunks.get(&chunk_position) {
-           self.chunk_to_gpu(chunk_position, chunk);
-           return;
-       } 
-        self.generate_chunk(chunk_position);
-        self.chunk_from_gpu(game_state, chunk_position);
-    }
-    /// Send a stored chunk to the gpu
-    fn chunk_to_gpu(&mut self, chunk_position: Vector3<i32>, chunk_data: &Chunk) {
-        
-        let staging_buffer = Buffer::from_data(
+    
+    /// Generates a chunk and returns a host-mapped Buffer containing its Data
+    pub fn generate_chunk(&mut self, chunk_position: Vector3<i32>) -> ChunkBuffer {
+        let cpu_buffer: ChunkBuffer = Buffer::new_sized(
             self.vulkano_core.allocators.memory.clone(),
-            BufferCreateInfo{
-                usage: BufferUsage::TRANSFER_SRC | BufferUsage::STORAGE_BUFFER,
+            BufferCreateInfo {
+                usage: BufferUsage::TRANSFER_SRC | BufferUsage::TRANSFER_DST | BufferUsage::STORAGE_BUFFER,
                 ..Default::default()
             },
             AllocationCreateInfo{
-                memory_type_filter: MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+                memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_RANDOM_ACCESS,
                 ..Default::default()
-            },
-            chunk_data.to_raw_data()
+            },            
         ).unwrap();
         
-        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
-        
-        let buffer_to_image = CopyBufferToImageInfo::buffer_image(
-            staging_buffer,
-            self.render_core.buffers.block_data_buffers[chunk_index].clone(),
-        );
-        
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &self.vulkano_core.allocators.commmand_buffer,
-            self.vulkano_core.queue.queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit
-        ).unwrap();
-        
-        builder
-            .copy_buffer_to_image(buffer_to_image)
-            .unwrap();
-        
-        let command_buffer = builder.build().unwrap();
-        
-        let future = self.previous_frame_end.take().unwrap()
-            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
-            .unwrap();
-        
-        self.previous_frame_end = Some(future.boxed());
-    }
-    /// Read back a chunk from the gpu and fill it into Terrain struct
-    fn chunk_from_gpu(&mut self, game_state: &mut GameState, chunk_position: Vector3<i32>) {
-        let staging_buffer = Buffer::from_data(
-            self.vulkano_core.allocators.memory.clone(),
-            BufferCreateInfo{
-                usage: BufferUsage::TRANSFER_DST | BufferUsage::STORAGE_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo{
-                memory_type_filter: MemoryTypeFilter::HOST_RANDOM_ACCESS,
-                ..Default::default()
-            },
-            [0u16; Graphics::CHUNK_SIZE as usize * Graphics::CHUNK_SIZE as usize * Graphics::CHUNK_SIZE as usize]
-        ).unwrap();
-
-        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
-
-        let image_to_buffer = CopyImageToBufferInfo::image_buffer(
-            self.render_core.buffers.block_data_buffers[chunk_index].clone(),
-            staging_buffer.clone()
-        );
-
-        let mut builder = AutoCommandBufferBuilder::primary(
-            &self.vulkano_core.allocators.commmand_buffer,
-            self.vulkano_core.queue.queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit
-        ).unwrap();
-
-        builder
-            .copy_image_to_buffer(image_to_buffer)
-            .unwrap();
-
-        let command_buffer = builder.build().unwrap();
-
-        let future = self.previous_frame_end.take().unwrap()
-            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
-            .unwrap();
-
-        future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
-        
-        let chunk_data = staging_buffer.read().unwrap();
-        
-        let chunk = Chunk::from_raw_data(chunk_data.as_slice());
-        
-        game_state.terrain.chunks.insert(chunk_position, chunk);
-        
-        self.previous_frame_end = Some(sync::now(self.vulkano_core.device.clone()).boxed());
-    }
-
-    //noinspection RsUnresolvedPath
-    fn generate_chunk(&mut self, chunk_position: Vector3<i32>) {
         let push_constants = terrain_gen::PushConstants{
             chunk_position: chunk_position.into(),
         };
-        
-        let chunk_index = chunk_buffer_index(chunk_position, &self.settings);
 
         let descriptor_set = PersistentDescriptorSet::new(
             &self.vulkano_core.allocators.descriptor_set,
             self.render_core.pipelines.terrain_generator_pipeline.pipeline.layout().set_layouts()[0].clone(),
             [
-                WriteDescriptorSet::image_view(0, ImageView::new_default(self.render_core.buffers.block_data_buffers[chunk_index].clone()).unwrap()),
+                WriteDescriptorSet::buffer(0, cpu_buffer.clone()),
             ],
             [],
         ).unwrap();
@@ -387,12 +302,11 @@ impl Graphics {
             .take()
             .unwrap()
             .then_execute(self.vulkano_core.queue.clone(), command_buffer)
-            .unwrap()
-            .then_signal_fence_and_flush()
             .unwrap();
         
         
         self.previous_frame_end = Some(future.boxed());
+        cpu_buffer
     }
     
     fn wait_and_reset_last_frame_end(&mut self) {
@@ -407,14 +321,35 @@ impl Graphics {
         self.vulkano_core.window.set_cursor_grab(if self.cursor_confined { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None }).unwrap();
         self.vulkano_core.window.set_cursor_visible(!self.cursor_confined);
     }
-}
+    
+    pub fn copy_buffer_to_image(&mut self, buffer: ChunkBuffer, image: Arc<Image>) {
+        let copy_info = CopyBufferToImageInfo::buffer_image(
+            buffer,
+            image.clone()
+        );
+
+        let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
+            &self.vulkano_core.allocators.commmand_buffer,
+            self.vulkano_core.queue.queue_family_index(),
+            CommandBufferUsage::OneTimeSubmit,
+        ).unwrap();
+
+        builder
+            .copy_buffer_to_image(
+                copy_info
+            )
+            .unwrap();
+        
+        let command_buffer = builder.build().unwrap();
+
+        let future = self
+            .previous_frame_end
+            .take()
+            .unwrap()
+            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
+            .unwrap();
 
 
-
-fn chunk_buffer_index(chunk_position: Vector3<i32>, settings: &Settings) -> usize {
-    let render_sl = 2 * settings.graphics_settings.render_distance as i32 + 1;
-    chunk_position.map(
-        |x|
-            x.rem_euclid(render_sl)
-    ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
+        self.previous_frame_end = Some(future.boxed());
+    }
 }
