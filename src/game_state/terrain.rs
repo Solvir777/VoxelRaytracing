@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use nalgebra::Vector3;
 use vulkano::buffer::Subbuffer;
+use crate::game_state::terrain::block::Block;
 use crate::graphics::Graphics;
 use crate::settings::Settings;
 
+pub mod block;
 pub struct Terrain {
     pub chunks: HashMap<Vector3<i32>, ChunkBuffer>
 }
@@ -29,8 +31,25 @@ impl Terrain {
         let chunk = self.chunks.get(&chunk_position).unwrap();
         
         let chunk_index = chunk_buffer_index(chunk_position, &graphics.settings);
-        graphics.copy_buffer_to_image(chunk.clone(), graphics.render_core.buffers.block_data_buffers[chunk_index].clone())
+        graphics.copy_buffer_to_image(chunk.clone(), graphics.render_core.buffers.block_data_buffers[chunk_index].clone(), None)
         // end
+    }
+    pub fn place_block(&mut self, graphics: &mut Graphics, block_position: Vector3<i32>, block_type: Block) {
+        graphics.wait_and_reset_last_frame_end();
+        let block_chunk = block_position.map(|x| (x as f32 / Graphics::CHUNK_SIZE as f32).floor() as i32);
+        let chunk = self.chunks.get_mut(&block_chunk).unwrap();
+        let mut guard = chunk.write().unwrap();
+        guard[block_in_chunk_index(block_position)] = block_type.as_u16();
+        drop(guard);
+        let index = chunk_buffer_index(block_chunk, &graphics.settings);
+        
+        graphics.copy_buffer_to_image(
+            chunk.clone(),
+            graphics.render_core.buffers.block_data_buffers[index].clone(),
+            Some(block_position)
+        );
+        graphics.wait_and_reset_last_frame_end();
+        
     }
 }
 
@@ -41,4 +60,9 @@ fn chunk_buffer_index(chunk_position: Vector3<i32>, settings: &Settings) -> usiz
         |x|
             x.rem_euclid(render_sl)
     ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
+}
+
+pub fn block_in_chunk_index(block_position: Vector3<i32>) -> usize {
+    let pos = block_position.map(|x| x.rem_euclid(Graphics::CHUNK_SIZE as i32) as u32);
+    pos.dot(&Vector3::new(1, Graphics::CHUNK_SIZE, Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE)) as usize
 }

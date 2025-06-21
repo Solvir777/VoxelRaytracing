@@ -65,7 +65,6 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
             hit_point = ro + rd * old_distance;
             return true;
         }
-
     }
 
     return false;
@@ -82,10 +81,13 @@ vec3 raycast() {
     vec3 surface_normal;
     vec3 hit_point;
 
+
     if(single_ray(ro, rd, block_id, surface_normal, hit_point)) {
+        if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
+            debugPrintfEXT("looking at block %v3i", ivec3(hit_point - surface_normal * 0.2));
+        }
         return surface_normal + 0.5 * vec3(sin(floor(hit_point.x + 0.001) * 2.), sin(floor(hit_point.y + 0.001) * 2.), sin((floor(hit_point.z + 0.001)) * 2.));
     }
-
 
     return surface_normal;
 }

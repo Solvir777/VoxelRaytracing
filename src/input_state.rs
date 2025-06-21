@@ -1,4 +1,4 @@
-use winit::event::KeyboardInput;
+use winit::event::{ElementState, KeyboardInput, MouseButton};
 use crate::input_state::keyboard_input_state::KeyboardInputState;
 use crate::input_state::mouse_input_state::MouseInputState;
 mod keyboard_input_state;
@@ -6,11 +6,11 @@ mod mouse_input_state;
 
 #[derive(Debug)]
 pub struct InputState {
-    keyboard: KeyboardInputState,
+    pub keyboard: KeyboardInputState,
     pub mouse: MouseInputState,
 }
 
-pub enum KeyState {
+pub enum PressState {
     Down,
     Up,
     Held,
@@ -23,11 +23,31 @@ impl InputState {
             mouse: MouseInputState::new(),
         }
     }
-    pub fn is_key_pressed(&self, key_code: winit::event::VirtualKeyCode, key_state: KeyState) -> bool {
-        match key_state {
-            KeyState::Down => {self.keyboard.key_down(key_code)}
-            KeyState::Up => {self.keyboard.key_up(key_code)}
-            KeyState::Held => {self.keyboard.key_held(key_code)}
+    pub fn is_key_pressed(&self, key_code: winit::event::VirtualKeyCode, key_state: PressState) -> bool {
+        match (self.keyboard.held_keys.contains(&key_code), self.keyboard.held_keys_last_frame.contains(&key_code), key_state)  {
+            (true, true, PressState::Held) => true,
+            (true, false, PressState::Down) => true,
+            (false, true, PressState::Up) => true,
+            _ => false
+        }
+    }
+    pub fn is_mouse_pressed(&self, button: MouseButton, mouse_state: PressState) -> bool {
+        match (self.mouse.pressed_buttons.contains(&button), self.mouse.last_frame_pressed_buttons.contains(&button), mouse_state)  {
+            (true, true, PressState::Held) => true,
+            (true, false, PressState::Down) => true,
+            (false, true, PressState::Up) => true,
+            _ => false
+        }
+    }
+
+    pub fn update_mouse_press(&mut self, state: ElementState, button: MouseButton) {
+        match state {
+            ElementState::Pressed => {
+                self.mouse.pressed_buttons.insert(button);
+            }
+            ElementState::Released => {
+                self.mouse.pressed_buttons.remove(&button);
+            }
         }
     }
 

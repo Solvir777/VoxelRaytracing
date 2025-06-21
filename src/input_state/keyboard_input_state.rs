@@ -3,8 +3,8 @@ use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 
 #[derive(Debug)]
 pub struct KeyboardInputState {
-    held_keys: HashSet<VirtualKeyCode>,
-    held_keys_last_frame: HashSet<VirtualKeyCode>,
+    pub held_keys: HashSet<VirtualKeyCode>,
+    pub held_keys_last_frame: HashSet<VirtualKeyCode>,
 }
 
 

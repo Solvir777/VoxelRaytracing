@@ -1,6 +1,6 @@
 use nalgebra::{Rotation3, Vector3};
 use winit::event::VirtualKeyCode;
-use crate::input_state::{InputState, KeyState};
+use crate::input_state::{InputState, PressState};
 use crate::settings::Settings;
 
 pub struct Player{
@@ -24,12 +24,12 @@ impl Player{
     pub fn movement(&mut self, input_state: &InputState, delta_time: f32) {
         let (w, a, s, d, up_key, down_key) =
             (
-                input_state.is_key_pressed(VirtualKeyCode::W, KeyState::Held),
-                input_state.is_key_pressed(VirtualKeyCode::A, KeyState::Held),
-                input_state.is_key_pressed(VirtualKeyCode::S, KeyState::Held),
-                input_state.is_key_pressed(VirtualKeyCode::D, KeyState::Held),
-                input_state.is_key_pressed(VirtualKeyCode::Space, KeyState::Held),
-                input_state.is_key_pressed(VirtualKeyCode::LShift, KeyState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::W, PressState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::A, PressState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::S, PressState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::D, PressState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::Space, PressState::Held),
+                input_state.is_key_pressed(VirtualKeyCode::LShift, PressState::Held),
             );
 
         let up = Vector3::new(0., 1., 0.);

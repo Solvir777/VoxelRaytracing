@@ -1,4 +1,4 @@
-const int CHUNK_SIZE = 32;
+const int CHUNK_SIZE = 64;
 const int CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 int rem_euclid_int(int dividend, int divisor) {

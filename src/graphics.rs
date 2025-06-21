@@ -1,24 +1,25 @@
+use std::ops::Rem;
 use crate::shaders::rendering::PushConstants;
 use std::sync::Arc;
 use std::time::Instant;
 use nalgebra::Vector3;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo, CopyImageToBufferInfo};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, BufferImageCopy, CommandBufferUsage, CopyBufferToImageInfo, CopyImageToBufferInfo};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::image::Image;
+use vulkano::image::{Image, ImageAspects, ImageSubresourceLayers};
 use vulkano::image::view::ImageView;
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use crate::graphics::render_core::RenderCore;
 use crate::graphics::vulkano_core::VulkanoCore;
 use vulkano::pipeline::Pipeline;
-use vulkano::sync;
+use vulkano::{sync, DeviceSize};
 use vulkano::sync::GpuFuture;
 use winit::event::{DeviceEvent, Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use crate::game_state::GameState;
-use crate::game_state::terrain::ChunkBuffer;
+use crate::game_state::terrain::{block_in_chunk_index, ChunkBuffer};
 use crate::graphics::render_core::swapchain_resources::SwapchainResources;
-use crate::input_state::{InputState, KeyState};
+use crate::input_state::{InputState, PressState};
 use crate::settings::Settings;
 use crate::shaders::terrain_gen;
 
@@ -35,7 +36,7 @@ pub struct Graphics {
     cursor_confined: bool
 }
 impl Graphics {
-    pub const CHUNK_SIZE: u32 = 32;
+    pub const CHUNK_SIZE: u32 = 64;
     pub const CHUNK_VOLUME: u32 = Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE;
     pub fn new(settings: Settings) -> (Self, EventLoop<()>) {
         let (vulkano_core, event_loop) = VulkanoCore::new();
@@ -73,10 +74,13 @@ impl Graphics {
                     match event {
                         WindowEvent::Resized(..) => {
                             self.render_core.swapchain_ressources.recreate_swapchain = true;
-                        }
+                        },
                         WindowEvent::CloseRequested{ .. } => {
                             println!("Close Requested!");
                             *control_flow = ControlFlow::Exit;
+                        },
+                        WindowEvent::MouseInput{ state, button, .. } => {
+                            input_state.update_mouse_press(state, button);
                         }
                         _ => {}
                     }
@@ -309,7 +313,7 @@ impl Graphics {
         cpu_buffer
     }
     
-    fn wait_and_reset_last_frame_end(&mut self) {
+    pub fn wait_and_reset_last_frame_end(&mut self) {
         if let Some(future) = self.previous_frame_end.take() && future.queue().is_some() { 
             future.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
         }
@@ -322,11 +326,45 @@ impl Graphics {
         self.vulkano_core.window.set_cursor_visible(!self.cursor_confined);
     }
     
-    pub fn copy_buffer_to_image(&mut self, buffer: ChunkBuffer, image: Arc<Image>) {
-        let copy_info = CopyBufferToImageInfo::buffer_image(
-            buffer,
-            image.clone()
-        );
+    pub fn copy_buffer_to_image(
+        &mut self, 
+        buffer: ChunkBuffer, 
+        image: Arc<Image>,
+        only_copy_single_block: Option<Vector3<i32>>,
+    ) {
+        let copy_info = 
+        match only_copy_single_block {
+            None => {
+                CopyBufferToImageInfo::buffer_image(
+                    buffer.clone(),
+                    image.clone()
+                )
+            }
+            Some(block_position) => {
+                let block_in_chunk = block_in_chunk_index(block_position);
+                let regions = vec!(
+                    BufferImageCopy{
+                        buffer_offset: (block_in_chunk * size_of::<u16>()) as DeviceSize,
+                        image_subresource: ImageSubresourceLayers {
+                            aspects: ImageAspects::COLOR,
+                            mip_level: 0,
+                            array_layers: 0..1,
+                        },
+                        image_offset: block_position.map(|x| x.rem_euclid(Self::CHUNK_SIZE as i32) as u32).data.0[0],
+                        image_extent: [1; 3],
+                        ..Default::default()
+                    }
+                ).into();
+
+                CopyBufferToImageInfo{
+                    regions,
+                    ..CopyBufferToImageInfo::buffer_image(
+                        buffer.clone(),
+                        image.clone()
+                    )
+                }
+            }
+        };
 
         let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
             &self.vulkano_core.allocators.commmand_buffer,
