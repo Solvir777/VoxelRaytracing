@@ -1,9 +1,9 @@
+use crate::graphics::Graphics;
 use crate::graphics::vulkano_core::VulkanoCore;
 use std::sync::Arc;
 use vulkano::format::Format;
 use vulkano::image::{Image, ImageUsage};
 use vulkano::swapchain::{PresentMode, Swapchain, SwapchainCreateInfo};
-use crate::graphics::Graphics;
 
 pub struct SwapchainResources {
     pub swapchain: Arc<Swapchain>,
@@ -14,7 +14,7 @@ pub struct SwapchainResources {
 impl SwapchainResources {
     pub fn new(vulkano: &VulkanoCore) -> Self {
         let (swapchain, swapchain_images) = create_swapchain(vulkano);
-        Self{
+        Self {
             swapchain,
             swapchain_images,
             recreate_swapchain: true,
@@ -24,8 +24,7 @@ impl SwapchainResources {
     pub fn recreate_swapchain(graphics: &mut Graphics) {
         let swapchain_resources = &mut graphics.render_core.swapchain_ressources;
 
-        let (new_swapchain, new_images) =
-            swapchain_resources
+        let (new_swapchain, new_images) = swapchain_resources
             .swapchain
             .recreate(SwapchainCreateInfo {
                 image_extent: graphics.vulkano_core.window.inner_size().into(),
@@ -33,12 +32,20 @@ impl SwapchainResources {
             })
             .expect("failed to recreate swapchain");
 
-        graphics.render_core.pipelines.recreate_image_descriptor_sets(
-            &new_images,
-            &graphics.vulkano_core,
-            graphics.render_core.pipelines.raytrace_pipeline.pipeline.clone(),
-            &graphics.render_core.buffers
-        );
+        graphics
+            .render_core
+            .pipelines
+            .recreate_image_descriptor_sets(
+                &new_images,
+                &graphics.vulkano_core,
+                graphics
+                    .render_core
+                    .pipelines
+                    .raytrace_pipeline
+                    .pipeline
+                    .clone(),
+                &graphics.render_core.buffers,
+            );
 
         swapchain_resources.swapchain = new_swapchain;
         swapchain_resources.recreate_swapchain = false;

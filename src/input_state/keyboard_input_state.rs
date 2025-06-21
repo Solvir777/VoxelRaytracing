@@ -7,7 +7,6 @@ pub struct KeyboardInputState {
     pub held_keys_last_frame: HashSet<VirtualKeyCode>,
 }
 
-
 impl KeyboardInputState {
     pub fn new() -> Self {
         Self {
@@ -24,24 +23,14 @@ impl KeyboardInputState {
 
         match keyboard_input.state {
             ElementState::Pressed => {
-                self.held_keys.insert(keyboard_input.virtual_keycode.unwrap());
+                self.held_keys
+                    .insert(keyboard_input.virtual_keycode.unwrap());
             }
             ElementState::Released => {
-                self.held_keys.remove(&keyboard_input.virtual_keycode.unwrap());
+                self.held_keys
+                    .remove(&keyboard_input.virtual_keycode.unwrap());
             }
         }
-    }
-
-    pub fn key_held(&self, key_code: VirtualKeyCode) -> bool {
-        self.held_keys.contains(&key_code)
-    }
-
-    pub fn key_down(&self, key_code: VirtualKeyCode) -> bool {
-        self.held_keys.contains(&key_code) && !self.held_keys_last_frame.contains(&key_code)
-    }
-
-    pub fn key_up(&self, key_code: VirtualKeyCode) -> bool {
-        !self.held_keys.contains(&key_code) && self.held_keys_last_frame.contains(&key_code)
     }
 
     pub fn refresh(&mut self) {

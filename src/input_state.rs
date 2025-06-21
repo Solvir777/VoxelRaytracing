@@ -1,6 +1,6 @@
-use winit::event::{ElementState, KeyboardInput, MouseButton};
 use crate::input_state::keyboard_input_state::KeyboardInputState;
 use crate::input_state::mouse_input_state::MouseInputState;
+use winit::event::{ElementState, KeyboardInput, MouseButton};
 mod keyboard_input_state;
 mod mouse_input_state;
 
@@ -23,20 +23,32 @@ impl InputState {
             mouse: MouseInputState::new(),
         }
     }
-    pub fn is_key_pressed(&self, key_code: winit::event::VirtualKeyCode, key_state: PressState) -> bool {
-        match (self.keyboard.held_keys.contains(&key_code), self.keyboard.held_keys_last_frame.contains(&key_code), key_state)  {
+    pub fn is_key_pressed(
+        &self,
+        key_code: winit::event::VirtualKeyCode,
+        key_state: PressState,
+    ) -> bool {
+        match (
+            self.keyboard.held_keys.contains(&key_code),
+            self.keyboard.held_keys_last_frame.contains(&key_code),
+            key_state,
+        ) {
             (true, true, PressState::Held) => true,
             (true, false, PressState::Down) => true,
             (false, true, PressState::Up) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_mouse_pressed(&self, button: MouseButton, mouse_state: PressState) -> bool {
-        match (self.mouse.pressed_buttons.contains(&button), self.mouse.last_frame_pressed_buttons.contains(&button), mouse_state)  {
+        match (
+            self.mouse.pressed_buttons.contains(&button),
+            self.mouse.last_frame_pressed_buttons.contains(&button),
+            mouse_state,
+        ) {
             (true, true, PressState::Held) => true,
             (true, false, PressState::Down) => true,
             (false, true, PressState::Up) => true,
-            _ => false
+            _ => false,
         }
     }
 

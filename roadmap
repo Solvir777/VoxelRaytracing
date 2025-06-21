@@ -4,6 +4,7 @@ collisions system
 chebyshev distance accelerated rendering
 fov
 loading voxel models
+multiple LOD levels (larger size chunks -> chunk-generation-area is one higher level chunk)
 
 DONE:
 overhaul chunk management (multiple chunk images rather than one)

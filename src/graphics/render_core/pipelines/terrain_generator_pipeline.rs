@@ -27,12 +27,12 @@ pub fn create_terrain_generator_pipeline(device: Arc<Device>) -> Arc<ComputePipe
                 .unwrap()
         },
     )
-        .unwrap();
+    .unwrap();
 
     ComputePipeline::new(
         device.clone(),
         None,
         ComputePipelineCreateInfo::stage_layout(stage_info, layout),
     )
-        .unwrap()
+    .unwrap()
 }

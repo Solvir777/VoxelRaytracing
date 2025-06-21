@@ -1,13 +1,14 @@
 layout (constant_id = 0) const int render_distance = 4;
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-layout(r16ui, set = 0, binding = 1) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
-//layout(r16ui, set = 0, binding = 2) readonly uniform uimage3D distance_data;
-layout(set = 0, binding = 2) writeonly buffer LookingAtBlock{
+layout(set = 0, binding = 1) writeonly buffer LookingAtBlock{
     vec3 hit_point;
     uint block_id; // 0 means no hit (air)
     vec3 hit_normal;
 } looking_at;
+layout(r16ui, set = 0, binding = 2) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
+//layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D distance_data;
+
 
 layout(push_constant) uniform PushConstants {
     mat4 cam_transform;

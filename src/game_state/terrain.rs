@@ -1,16 +1,15 @@
-use std::collections::HashMap;
-use nalgebra::Vector3;
-use vulkano::buffer::Subbuffer;
 use crate::game_state::terrain::block::Block;
 use crate::graphics::Graphics;
 use crate::settings::Settings;
+use nalgebra::Vector3;
+use std::collections::HashMap;
+use vulkano::buffer::Subbuffer;
 
 pub mod block;
 pub struct Terrain {
-    pub chunks: HashMap<Vector3<i32>, ChunkBuffer>
+    pub chunks: HashMap<Vector3<i32>, ChunkBuffer>,
 }
 pub type ChunkBuffer = Subbuffer<[u16; Graphics::CHUNK_VOLUME as usize]>;
-
 
 impl Terrain {
     pub fn empty() -> Self {
@@ -29,40 +28,51 @@ impl Terrain {
 
         // if hard generate
         let chunk = self.chunks.get(&chunk_position).unwrap();
-        
+
         let chunk_index = chunk_buffer_index(chunk_position, &graphics.settings);
-        graphics.copy_buffer_to_image(chunk.clone(), graphics.render_core.buffers.block_data_buffers[chunk_index].clone(), None)
+        graphics.copy_buffer_to_image(
+            chunk.clone(),
+            graphics.render_core.buffers.block_data_buffers[chunk_index].clone(),
+            None,
+        )
         // end
     }
-    pub fn place_block(&mut self, graphics: &mut Graphics, block_position: Vector3<i32>, block_type: Block) {
+    pub fn place_block(
+        &mut self,
+        graphics: &mut Graphics,
+        block_position: Vector3<i32>,
+        block_type: Block,
+    ) {
         graphics.wait_and_reset_last_frame_end();
-        let block_chunk = block_position.map(|x| (x as f32 / Graphics::CHUNK_SIZE as f32).floor() as i32);
+        let block_chunk =
+            block_position.map(|x| (x as f32 / Graphics::CHUNK_SIZE as f32).floor() as i32);
         let chunk = self.chunks.get_mut(&block_chunk).unwrap();
         let mut guard = chunk.write().unwrap();
         guard[block_in_chunk_index(block_position)] = block_type.as_u16();
         drop(guard);
         let index = chunk_buffer_index(block_chunk, &graphics.settings);
-        
+
         graphics.copy_buffer_to_image(
             chunk.clone(),
             graphics.render_core.buffers.block_data_buffers[index].clone(),
-            Some(block_position)
+            Some(block_position),
         );
         graphics.wait_and_reset_last_frame_end();
-        
     }
 }
 
-
 fn chunk_buffer_index(chunk_position: Vector3<i32>, settings: &Settings) -> usize {
     let render_sl = 2 * settings.graphics_settings.render_distance as i32 + 1;
-    chunk_position.map(
-        |x|
-            x.rem_euclid(render_sl)
-    ).dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
+    chunk_position
+        .map(|x| x.rem_euclid(render_sl))
+        .dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
 }
 
 pub fn block_in_chunk_index(block_position: Vector3<i32>) -> usize {
     let pos = block_position.map(|x| x.rem_euclid(Graphics::CHUNK_SIZE as i32) as u32);
-    pos.dot(&Vector3::new(1, Graphics::CHUNK_SIZE, Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE)) as usize
+    pos.dot(&Vector3::new(
+        1,
+        Graphics::CHUNK_SIZE,
+        Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE,
+    )) as usize
 }

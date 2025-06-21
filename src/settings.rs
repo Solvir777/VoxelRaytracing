@@ -1,8 +1,8 @@
 use crate::settings::graphics_settings::GraphicsSettings;
 use crate::settings::input_settings::InputSettings;
 
-mod input_settings;
 pub mod graphics_settings;
+mod input_settings;
 
 pub struct Settings {
     pub(crate) graphics_settings: GraphicsSettings,

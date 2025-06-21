@@ -1,4 +1,3 @@
-
 pub mod terrain_gen {
     vulkano_shaders::shader! {
         ty: "compute",

@@ -1,13 +1,13 @@
 mod player;
 pub mod terrain;
 
-use nalgebra::Vector3;
 use crate::game_state::player::Player;
 use crate::game_state::terrain::Terrain;
 use crate::graphics::Graphics;
 use crate::input_state::InputState;
 use crate::settings::Settings;
 use crate::shaders::rendering::PushConstants;
+use nalgebra::Vector3;
 
 pub struct GameState {
     pub player: Player,
@@ -18,9 +18,10 @@ impl GameState {
     pub fn get_push_constants(&self) -> PushConstants {
         let pos = self.player.position;
         let rot = self.player.get_rotation_mat();
-        let cam_transform = nalgebra::Matrix4::new_translation(&pos) * nalgebra::Matrix4::from(rot).transpose();
+        let cam_transform =
+            nalgebra::Matrix4::new_translation(&pos) * nalgebra::Matrix4::from(rot).transpose();
 
-        PushConstants{
+        PushConstants {
             cam_transform: cam_transform.into(),
         }
     }
@@ -37,7 +38,9 @@ impl GameState {
     }
 
     pub fn get_player_chunk(&self) -> Vector3<i32> {
-        self.player.position.map(|x: f32| (x / Graphics::CHUNK_SIZE as f32).floor() as i32)
+        self.player
+            .position
+            .map(|x: f32| (x / Graphics::CHUNK_SIZE as f32).floor() as i32)
     }
 }
 #[cfg(test)]

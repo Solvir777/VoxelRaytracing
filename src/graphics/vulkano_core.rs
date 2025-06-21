@@ -52,7 +52,9 @@ impl VulkanoCore {
 
         std::thread::sleep(Duration::from_millis(200));
 
-        window.set_cursor_grab(CursorGrabMode::Confined).expect("Couldn't confine Cursor!");
+        window
+            .set_cursor_grab(CursorGrabMode::Confined)
+            .expect("Couldn't confine Cursor!");
         window.set_cursor_visible(false);
 
         let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
@@ -66,14 +68,13 @@ impl VulkanoCore {
         let (physical_device, queue_family_index) =
             get_physical_device(instance, &surface, &device_extensions);
 
-        let features = Features{
+        let features = Features {
             runtime_descriptor_array: true,
             uniform_and_storage_buffer16_bit_access: true,
             storage_buffer16_bit_access: true,
             ..Features::default()
         };
-        
-        
+
         let (device, mut queues) = Device::new(
             physical_device,
             vulkano::device::DeviceCreateInfo {
@@ -100,7 +101,7 @@ impl VulkanoCore {
                 queue,
                 surface,
             },
-            event_loop
+            event_loop,
         )
     }
 }
