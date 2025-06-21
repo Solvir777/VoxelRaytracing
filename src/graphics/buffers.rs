@@ -1,20 +1,29 @@
+use crate::shaders::rendering::LookingAtBlock;
 use crate::graphics::Graphics;
 use crate::settings::graphics_settings::GraphicsSettings;
 use crate::graphics::vulkano_core::VulkanoCore;
 use std::sync::Arc;
+use nalgebra::Vector3;
+use vulkano::buffer::{Buffer, BufferCreateFlags, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::format::Format;
 use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
 use vulkano::image::view::ImageView;
-use vulkano::memory::allocator::{AllocationCreateInfo};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use crate::shaders;
 
 pub struct Buffers {
     pub block_data_buffers: Box<[Arc<Image>]>,
+    pub player_raycast_buffer: Subbuffer<LookingAtBlock>
 }
 
 impl Buffers {
     pub fn new(vulkano_core: &VulkanoCore, graphics_settings: &GraphicsSettings) -> Self {
+        let player_raycast_buffer = create_looking_at_buffer(vulkano_core);
         let block_data_buffers = create_block_data_buffers(vulkano_core, &graphics_settings);
-        Self { block_data_buffers }
+        Self { 
+            block_data_buffers,
+            player_raycast_buffer
+        }
     }
     
     pub fn get_chunk_image_views(&self) -> Vec<Arc<ImageView>>{
@@ -23,6 +32,26 @@ impl Buffers {
                 ImageView::new_default(x.clone()).unwrap()
         ).collect::<Vec<_>>()
     }
+}
+
+fn create_looking_at_buffer(vulkano_core: &VulkanoCore) -> Subbuffer<LookingAtBlock> {
+    let content = LookingAtBlock{
+        hit_point: Vector3::zeros(),
+        block_id: 0,
+        hit_normal: Vector3::zeros(),
+    };
+    Buffer::from_data(
+        vulkano_core.allocators.memory.clone(),
+        BufferCreateInfo{
+            usage: BufferUsage::STORAGE_BUFFER,
+            ..Default::default()
+        },
+        AllocationCreateInfo{
+            memory_type_filter: MemoryTypeFilter::HOST_RANDOM_ACCESS,
+            ..Default::default()
+        },
+        content
+    ).unwrap()
 }
 
 fn create_block_data_buffers(

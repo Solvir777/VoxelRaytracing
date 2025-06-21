@@ -64,6 +64,7 @@ fn create_raytrace_descriptor_sets
                 [
                     WriteDescriptorSet::image_view(0, ImageView::new_default(x.clone()).unwrap()),
                     WriteDescriptorSet::image_view_array(1, 0, buffers.get_chunk_image_views()),
+                    WriteDescriptorSet::buffer(2, buffers.player_raycast_buffer.clone())
                 ],
                 [
                 ],

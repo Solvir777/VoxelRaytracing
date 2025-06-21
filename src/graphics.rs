@@ -1,3 +1,4 @@
+use crate::shaders::rendering::LookingAtBlock;
 use std::ops::Rem;
 use crate::shaders::rendering::PushConstants;
 use std::sync::Arc;
@@ -389,5 +390,22 @@ impl Graphics {
 
 
         self.previous_frame_end = Some(future.boxed());
+    }
+    
+    pub fn what_is_bro_looking_at(&mut self) -> Option<LookingAtBlock> {
+        self.wait_and_reset_last_frame_end();
+        let buffer = self.render_core.buffers.player_raycast_buffer.clone();
+        let looking_at_guard = buffer.read().unwrap();
+
+        if looking_at_guard.block_id > 0 {
+            return Some(
+                LookingAtBlock{
+                    hit_point: looking_at_guard.hit_point,
+                    block_id: looking_at_guard.block_id,
+                    hit_normal: looking_at_guard.hit_normal,
+                }
+            )
+        }
+        None
     }
 }
