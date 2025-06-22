@@ -6,8 +6,12 @@ layout(set = 0, binding = 1) writeonly buffer LookingAtBlock{
     uint block_id; // 0 means no hit (air)
     vec3 hit_normal;
 } looking_at;
-layout(r16ui, set = 0, binding = 2) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
+layout(set = 0, binding = 2) readonly uniform GpuGraphicsSettings{
+    float fov;
+} settings;
+layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
 //layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D distance_data;
+
 
 
 layout(push_constant) uniform PushConstants {
@@ -83,7 +87,7 @@ vec3 raycast() {
         looking_at.block_id = 0;
     }
     const vec2 norm_coordinates = vec2(((gl_GlobalInvocationID.xy) / render_img_size.x) - vec2(0.5, render_img_size.y / render_img_size.x * 0.5));
-    const vec3 rd = normalize((vec4(norm_coordinates, 1., 1.) * push.cam_transform).xyz);
+    const vec3 rd = normalize((vec4(norm_coordinates * tan(settings.fov / 2.), 1., 1.) * push.cam_transform).xyz);
     const vec3 ro = player_position;
 
     uint block_id;

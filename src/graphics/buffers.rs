@@ -1,10 +1,14 @@
+mod gpu_graphics_settings;
+
+mod looking_at;
+
 use crate::graphics::Graphics;
 use crate::graphics::vulkano_core::VulkanoCore;
 use crate::settings::graphics_settings::GraphicsSettings;
 use crate::shaders::rendering::LookingAtBlock;
-use nalgebra::Vector3;
+use crate::shaders::rendering::GpuGraphicsSettings;
 use std::sync::Arc;
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
+use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
@@ -13,15 +17,31 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 pub struct Buffers {
     pub block_data_buffers: Box<[Arc<Image>]>,
     pub player_raycast_buffer: Subbuffer<LookingAtBlock>,
+    pub gpu_graphics_settings_buffer: Subbuffer<GpuGraphicsSettings>,
 }
 
 impl Buffers {
     pub fn new(vulkano_core: &VulkanoCore, graphics_settings: &GraphicsSettings) -> Self {
-        let player_raycast_buffer = create_looking_at_buffer(vulkano_core);
+        let player_raycast_buffer = buffer_from_data(
+            vulkano_core, 
+            LookingAtBlock::new(),
+            BufferUsage::STORAGE_BUFFER,
+            MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_RANDOM_ACCESS
+        );
+        
+        let gpu_graphics_settings_buffer = buffer_from_data(
+            vulkano_core,
+            GpuGraphicsSettings::new(graphics_settings),
+            BufferUsage::UNIFORM_BUFFER,
+            MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_RANDOM_ACCESS
+        );
+        
         let block_data_buffers = create_block_data_buffers(vulkano_core, &graphics_settings);
+
         Self {
             block_data_buffers,
             player_raycast_buffer,
+            gpu_graphics_settings_buffer
         }
     }
 
@@ -31,27 +51,6 @@ impl Buffers {
             .map(|x| ImageView::new_default(x.clone()).unwrap())
             .collect::<Vec<_>>()
     }
-}
-
-fn create_looking_at_buffer(vulkano_core: &VulkanoCore) -> Subbuffer<LookingAtBlock> {
-    let content = LookingAtBlock {
-        hit_point: Vector3::zeros(),
-        block_id: 0,
-        hit_normal: Vector3::zeros(),
-    };
-    Buffer::from_data(
-        vulkano_core.allocators.memory.clone(),
-        BufferCreateInfo {
-            usage: BufferUsage::STORAGE_BUFFER,
-            ..Default::default()
-        },
-        AllocationCreateInfo {
-            memory_type_filter: MemoryTypeFilter::HOST_RANDOM_ACCESS,
-            ..Default::default()
-        },
-        content,
-    )
-    .unwrap()
 }
 
 fn create_block_data_buffers(
@@ -79,4 +78,28 @@ fn create_block_data_buffers(
         })
         .collect::<Vec<_>>()
         .into_boxed_slice()
+}
+
+fn buffer_from_data<T>(
+    vulkano_core: &VulkanoCore,
+    content: T,
+    buffer_usage: BufferUsage,
+    memory_type_filter: MemoryTypeFilter,
+) -> Subbuffer<T>
+where
+    T: BufferContents,
+{
+    Buffer::from_data(
+        vulkano_core.allocators.memory.clone(),
+        BufferCreateInfo {
+            usage: buffer_usage,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter,
+            ..Default::default()
+        },
+        content,
+    )
+        .unwrap()
 }

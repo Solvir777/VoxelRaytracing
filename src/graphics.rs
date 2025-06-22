@@ -30,8 +30,8 @@ mod vulkano_core;
 pub struct Graphics {
     previous_frame_end: Option<Box<dyn GpuFuture>>,
     pub vulkano_core: VulkanoCore,
-    pub(crate) render_core: RenderCore,
-    pub(crate) settings: Settings,
+    pub render_core: RenderCore,
+    pub settings: Settings,
     cursor_confined: bool,
 }
 impl Graphics {
@@ -433,5 +433,11 @@ impl Graphics {
             });
         }
         None
+    }
+    
+    pub fn add_pov(&mut self, difference: f32) {
+        self.wait_and_reset_last_frame_end();
+        self.settings.graphics_settings.field_of_view = (self.settings.graphics_settings.field_of_view + difference).clamp(50., 160.);
+        self.render_core.buffers.gpu_graphics_settings_buffer.write().unwrap().fov = self.settings.graphics_settings.field_of_view.to_radians();
     }
 }
