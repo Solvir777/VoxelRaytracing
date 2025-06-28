@@ -19,13 +19,11 @@ layout(push_constant) uniform PushConstants {
 
 
 
-uint compute_1D_index() {
-    return uint(dot(gl_GlobalInvocationID, ivec3(1, CHUNK_SIZE, CHUNK_SIZE * CHUNK_SIZE)));
-}
+
 
 void main() {
     ivec3 in_world_position = push.chunk_position * CHUNK_SIZE + ivec3(gl_GlobalInvocationID);
     uint block_type = terrain_function(in_world_position);
 
-    data.block_data[compute_1D_index()] = uint16_t(block_type);
+    data.block_data[compute_1D_index(gl_GlobalInvocationID)] = uint16_t(block_type);
 }

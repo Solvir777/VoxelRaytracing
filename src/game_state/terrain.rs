@@ -1,9 +1,9 @@
 use crate::game_state::terrain::block::Block;
 use crate::graphics::Graphics;
-use crate::settings::Settings;
 use nalgebra::Vector3;
 use std::collections::HashMap;
 use vulkano::buffer::Subbuffer;
+use crate::graphics;
 
 pub mod block;
 pub struct Terrain {
@@ -18,7 +18,6 @@ impl Terrain {
         }
     }
     /// Checks whether the chunk is present in the terrain struct and generates it otherwise.
-    /// if hard_generate, it will be copied to the gpu
     pub fn upload_chunk(&mut self, graphics: &mut Graphics, chunk_position: Vector3<i32>) {
         if !self.chunks.contains_key(&chunk_position) {
             let chunk = graphics.generate_chunk(chunk_position);
@@ -26,16 +25,15 @@ impl Terrain {
             self.chunks.insert(chunk_position, chunk);
         }
 
-        // if hard generate
         let chunk = self.chunks.get(&chunk_position).unwrap();
 
-        let chunk_index = chunk_buffer_index(chunk_position, &graphics.settings);
+        let chunk_index = graphics::chunk_buffer_index(chunk_position, &graphics.settings);
         graphics.copy_buffer_to_image(
             chunk.clone(),
             graphics.render_core.buffers.block_data_buffers[chunk_index].clone(),
             None,
-        )
-        // end
+        );
+        graphics.generate_distance_field(chunk_position);
     }
     pub fn place_block(
         &mut self,
@@ -48,9 +46,9 @@ impl Terrain {
             block_position.map(|x| (x as f32 / Graphics::CHUNK_SIZE as f32).floor() as i32);
         let chunk = self.chunks.get_mut(&block_chunk).unwrap();
         let mut guard = chunk.write().unwrap();
-        guard[block_in_chunk_index(block_position)] = block_type.as_u16();
+        guard[graphics::block_in_chunk_index(block_position)] = block_type.as_u16();
         drop(guard);
-        let index = chunk_buffer_index(block_chunk, &graphics.settings);
+        let index = graphics::chunk_buffer_index(block_chunk, &graphics.settings);
 
         graphics.copy_buffer_to_image(
             chunk.clone(),
@@ -61,18 +59,3 @@ impl Terrain {
     }
 }
 
-fn chunk_buffer_index(chunk_position: Vector3<i32>, settings: &Settings) -> usize {
-    let render_sl = 2 * settings.graphics_settings.render_distance as i32 + 1;
-    chunk_position
-        .map(|x| x.rem_euclid(render_sl))
-        .dot(&Vector3::new(1, render_sl, render_sl * render_sl)) as usize
-}
-
-pub fn block_in_chunk_index(block_position: Vector3<i32>) -> usize {
-    let pos = block_position.map(|x| x.rem_euclid(Graphics::CHUNK_SIZE as i32) as u32);
-    pos.dot(&Vector3::new(
-        1,
-        Graphics::CHUNK_SIZE,
-        Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE,
-    )) as usize
-}

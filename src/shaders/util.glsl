@@ -1,4 +1,4 @@
-const int CHUNK_SIZE = 64;
+const int CHUNK_SIZE = 32;
 const int CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 int rem_euclid_int(int dividend, int divisor) {
@@ -45,4 +45,21 @@ int argmin(vec3 args) {
     }
 
     return min_index;
+}
+
+
+uint compute_1D_index(uvec3 invocation_id) {
+    return uint(dot(invocation_id, ivec3(1, CHUNK_SIZE, CHUNK_SIZE * CHUNK_SIZE)));
+}
+
+
+uint chebyshev_length(ivec3 pos) {
+    return
+    max(
+        max(
+            abs(pos.x),
+            abs(pos.y)
+        ),
+        abs(pos.z)
+    );
 }

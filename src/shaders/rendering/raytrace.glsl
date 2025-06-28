@@ -10,7 +10,7 @@ layout(set = 0, binding = 2) readonly uniform GpuGraphicsSettings{
     float fov;
 } settings;
 layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
-//layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D distance_data;
+layout(r8ui, set = 0, binding = 4) readonly uniform uimage3D distance_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
 
 
 
@@ -36,6 +36,17 @@ uint read_value(ivec3 pos, uint render_dist) {
     uint value = imageLoad(block_data[chunk_index], in_chunk_pos).x;
     return value;
 }
+uint read_distance(ivec3 pos, uint render_dist) {
+    uint chunks_length = render_dist * 2 + 1;
+    ivec3 storage_pos = rem_euclid_ivec3(pos, int(chunks_length) * CHUNK_SIZE);
+    ivec3 in_chunk_pos = rem_euclid_ivec3(pos, CHUNK_SIZE);
+
+    uvec3 chunk_address = uvec3(floor(storage_pos / CHUNK_SIZE));
+    uint chunk_index = uint(dot(chunk_address, ivec3(1, chunks_length, chunks_length * chunks_length)));
+
+    uint d = imageLoad(distance_data[chunk_index], in_chunk_pos).x;
+    return d;
+}
 
 
 bool is_inside_loaded_area(ivec3 pos) {
@@ -51,7 +62,6 @@ bool single_ray(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surface_norm
 
     ivec3 oct_rd01 = ivec3(greaterThan(rd, vec3(0.)));
     ivec3 oct_rd11 = (oct_rd01 * 2) - ivec3(1);
-
 
     vec3 t_dist_to_next = (vec3(oct_rd01) - fract(ro)) * inv_rd;
 
@@ -94,6 +104,10 @@ vec3 raycast() {
     vec3 surface_normal;
     vec3 hit_point;
 
+    if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
+        uint d = read_distance(ivec3(floor(ro)), render_distance);
+        debugPrintfEXT("distance to nearest block: %i", d);
+    }
 
     if(single_ray(ro, rd, block_id, surface_normal, hit_point)) {
         if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
@@ -104,6 +118,6 @@ vec3 raycast() {
         return surface_normal + 0.5 * vec3(sin(floor(hit_point.x + 0.001) * 2.), sin(floor(hit_point.y + 0.001) * 2.), sin((floor(hit_point.z + 0.001)) * 2.));
     }
 
-    return surface_normal;
+    return vec3(.51, 0.7, 0.9);
 }
 

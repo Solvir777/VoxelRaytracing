@@ -16,6 +16,7 @@ use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 
 pub struct Buffers {
     pub block_data_buffers: Box<[Arc<Image>]>,
+    pub distance_data_buffers: Box<[Arc<Image>]>,
     pub player_raycast_buffer: Subbuffer<LookingAtBlock>,
     pub gpu_graphics_settings_buffer: Subbuffer<GpuGraphicsSettings>,
 }
@@ -37,8 +38,10 @@ impl Buffers {
         );
         
         let block_data_buffers = create_block_data_buffers(vulkano_core, &graphics_settings);
+        let distance_data_buffers = create_distance_data_buffers(vulkano_core, &graphics_settings);
 
         Self {
+            distance_data_buffers,
             block_data_buffers,
             player_raycast_buffer,
             gpu_graphics_settings_buffer
@@ -47,6 +50,12 @@ impl Buffers {
 
     pub fn get_chunk_image_views(&self) -> Vec<Arc<ImageView>> {
         self.block_data_buffers
+            .iter()
+            .map(|x| ImageView::new_default(x.clone()).unwrap())
+            .collect::<Vec<_>>()
+    }
+    pub fn get_distance_image_views(&self) -> Vec<Arc<ImageView>> {
+        self.distance_data_buffers
             .iter()
             .map(|x| ImageView::new_default(x.clone()).unwrap())
             .collect::<Vec<_>>()
@@ -75,6 +84,33 @@ fn create_block_data_buffers(
                 AllocationCreateInfo::default(),
             )
             .unwrap()
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
+fn create_distance_data_buffers(
+    vulkano_core: &VulkanoCore,
+    graphics_settings: &GraphicsSettings,
+) -> Box<[Arc<Image>]> {
+    let image_create_info = ImageCreateInfo {
+        image_type: vulkano::image::ImageType::Dim3d,
+        format: Format::R8_UINT,
+        extent: [Graphics::CHUNK_SIZE; 3],
+        usage: ImageUsage::STORAGE,
+        ..Default::default()
+    };
+
+    let loaded_chunks_size = graphics_settings.render_distance as usize * 2 + 1;
+    vec![(); loaded_chunks_size * loaded_chunks_size * loaded_chunks_size]
+        .iter()
+        .map(|_| {
+            Image::new(
+                vulkano_core.allocators.memory.clone(),
+                image_create_info.clone(),
+                AllocationCreateInfo::default(),
+            )
+                .unwrap()
         })
         .collect::<Vec<_>>()
         .into_boxed_slice()

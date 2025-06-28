@@ -38,12 +38,6 @@ impl SwapchainResources {
             .recreate_image_descriptor_sets(
                 &new_images,
                 &graphics.vulkano_core,
-                graphics
-                    .render_core
-                    .pipelines
-                    .raytrace_pipeline
-                    .pipeline
-                    .clone(),
                 &graphics.render_core.buffers,
             );
 
