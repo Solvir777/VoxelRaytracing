@@ -1,12 +1,11 @@
 use crate::graphics::allocators::Allocators;
 use std::sync::Arc;
-use std::time::Duration;
 use vulkano::VulkanLibrary;
 use vulkano::device::{Device, Features, Queue};
 use vulkano::instance::Instance;
 use vulkano::swapchain::Surface;
 use winit::event_loop::EventLoop;
-use winit::window::{CursorGrabMode, Window};
+use winit::window::Window;
 
 pub struct VulkanoCore {
     pub allocators: Allocators,
@@ -46,16 +45,10 @@ impl VulkanoCore {
 
         let window = Arc::new(
             winit::window::WindowBuilder::new()
+                .with_inner_size(winit::dpi::PhysicalSize { width: 1600, height: 900 })
                 .build(&event_loop)
                 .unwrap(),
         );
-
-        std::thread::sleep(Duration::from_millis(200));
-
-        window
-            .set_cursor_grab(CursorGrabMode::Confined)
-            .expect("Couldn't confine Cursor!");
-        window.set_cursor_visible(false);
 
         let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
 

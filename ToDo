@@ -1,15 +1,18 @@
 TO DO:
 smooth Voxels (triquadratic interpolation)
 collisions system
-chebyshev distance accelerated rendering
 loading voxel models
 multiple LOD levels (larger size chunks -> chunk-generation-area is one higher level chunk)
 improve generation function
 storing/loading scenes
 different block types & textures
 implement better fix to distance field artifacts
+fix overwriting solid blocks distance values in sweep algorithm setup
+highlight outline of targeted block
+profiling for higher resolutions
 
 DONE:
+chebyshev distance accelerated rendering
 chebyshev distance field generation
 overhaul chunk management (multiple chunk images rather than one)
 descructible/buildable Terrain

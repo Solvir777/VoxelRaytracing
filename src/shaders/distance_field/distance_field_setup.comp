@@ -12,6 +12,7 @@ void main() {
         for(int y = -1; y <= 1 && flag == false; y++) {
             for(int z = -1; z <= 1 && flag == false; z++) {
                 ivec3 neighbor = self + ivec3(x, y, z);
+                if(self == neighbor) continue;
                 if (is_in_chunk_bounds(neighbor) && imageLoad(block_data, neighbor).x > 0) {
                     flag = true;
                 }
@@ -22,7 +23,7 @@ void main() {
 
 
     if(flag) {
-        imageStore(distance_data, self, uvec4(0));
+        imageStore(distance_data, self, uvec4(1));
     }
     else {
         imageStore(distance_data, self, uvec4(200));

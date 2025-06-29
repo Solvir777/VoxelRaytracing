@@ -186,7 +186,7 @@ fn execute_sweeps(graphics: &mut Graphics, chunk_position: Vector3<i32>) {
             )
             .unwrap()
             .dispatch(
-                [Graphics::CHUNK_SIZE / 8, Graphics::CHUNK_SIZE / 8, 3]
+                [Graphics::CHUNK_SIZE / 16, Graphics::CHUNK_SIZE / 16, 1]
             ).unwrap();
     }
 

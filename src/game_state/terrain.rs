@@ -56,6 +56,7 @@ impl Terrain {
             Some(block_position),
         );
         graphics.wait_and_reset_last_frame_end();
+        graphics.generate_distance_field(block_chunk);
     }
 }
 

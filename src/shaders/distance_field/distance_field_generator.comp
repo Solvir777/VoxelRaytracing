@@ -1,6 +1,6 @@
 #version 460
 #extension GL_EXT_debug_printf : enable
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 3) in;
 layout(r8ui, set = 0, binding = 0) uniform uimage3D distance_data;
 layout(push_constant) uniform PushConstants {
     ivec3 sweep_direction;
@@ -23,11 +23,8 @@ void main() {
             pos = ivec3((push.sweep_direction.x == 1)? 0 : CHUNK_SIZE - 1, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
             break;
     }
-
     
-    uint stored_dist = 200;
-
-    debugPrintfEXT("starting sweep from block: %v3i in direction: %v3i", pos, push.sweep_direction);
+    uint stored_dist = 0;
     while(is_in_chunk_bounds(pos)) {
         stored_dist = min(imageLoad(distance_data, pos).x, stored_dist + 1);
         imageStore(distance_data, pos, uvec4(stored_dist));
