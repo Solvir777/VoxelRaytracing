@@ -1,17 +1,16 @@
 use std::sync::Arc;
 use nalgebra::Vector3;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{BufferImageCopy, CommandBufferUsage, CopyBufferToImageInfo};
+use vulkano::command_buffer::{BufferImageCopy, CommandBufferUsage, CopyBufferToImageInfo, PrimaryCommandBufferAbstract};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::{Image, ImageAspects, ImageSubresourceLayers};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
 use vulkano::pipeline::Pipeline;
 use vulkano::{sync, DeviceSize};
-use vulkano::image::view::ImageView;
 use vulkano::sync::GpuFuture;
 use crate::game_state::GameState;
 use crate::game_state::terrain::ChunkBuffer;
-use crate::graphics::{block_in_chunk_index, chunk_buffer_index, Graphics};
+use crate::graphics::{block_in_chunk_index, Graphics};
 use crate::shaders::terrain_gen;
 
 impl Graphics {
@@ -191,73 +190,6 @@ impl Graphics {
     }
     
     pub fn generate_distance_field(&mut self, chunk_position: Vector3<i32>) {
-        let descriptor_set = PersistentDescriptorSet::new(
-            &self.vulkano_core.allocators.descriptor_set,
-            self.render_core
-                .pipelines
-                .terrain_distance_pipeline
-                .pipeline
-                .layout()
-                .set_layouts()[0]
-                .clone(),
-            [
-                WriteDescriptorSet::image_view(
-                    0, 
-                    ImageView::new_default(
-                        self.render_core.buffers.block_data_buffers[chunk_buffer_index(chunk_position, &self.settings)].clone()
-                    ).unwrap()
-                ),
-                WriteDescriptorSet::image_view(
-                    1,
-                    ImageView::new_default(
-                        self.render_core.buffers.distance_data_buffers[chunk_buffer_index(chunk_position, &self.settings)].clone()
-                    ).unwrap()
-                )
-            ],
-            [],
-        )
-            .unwrap();
-
-        let mut builder = vulkano::command_buffer::AutoCommandBufferBuilder::primary(
-            &self.vulkano_core.allocators.commmand_buffer,
-            self.vulkano_core.queue.queue_family_index(),
-            CommandBufferUsage::OneTimeSubmit,
-        )
-            .unwrap();
-
-        builder
-            .bind_pipeline_compute(
-                self.render_core
-                    .pipelines
-                    .terrain_distance_pipeline
-                    .pipeline
-                    .clone(),
-            )
-            .unwrap()
-            .bind_descriptor_sets(
-                vulkano::pipeline::PipelineBindPoint::Compute,
-                self.render_core
-                    .pipelines
-                    .terrain_distance_pipeline
-                    .pipeline
-                    .layout()
-                    .clone(),
-                0,
-                descriptor_set,
-            )
-            .unwrap()
-            .dispatch([Self::CHUNK_SIZE / 8; 3])
-            .unwrap();
-
-        let command_buffer = builder.build().unwrap();
-
-        let future = self
-            .previous_frame_end
-            .take()
-            .unwrap()
-            .then_execute(self.vulkano_core.queue.clone(), command_buffer)
-            .unwrap();
-
-        self.previous_frame_end = Some(future.boxed());
+        crate::graphics::render_core::pipelines::terrain_distance_pipeline::execute(self, chunk_position);
     }
 }

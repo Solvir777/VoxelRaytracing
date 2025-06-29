@@ -7,8 +7,10 @@ multiple LOD levels (larger size chunks -> chunk-generation-area is one higher l
 improve generation function
 storing/loading scenes
 different block types & textures
+implement better fix to distance field artifacts
 
 DONE:
+chebyshev distance field generation
 overhaul chunk management (multiple chunk images rather than one)
 descructible/buildable Terrain
 cpu side chunks as host_local buffers

@@ -1,0 +1,36 @@
+#version 460
+#extension GL_EXT_debug_printf : enable
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(r8ui, set = 0, binding = 0) uniform uimage3D distance_data;
+layout(push_constant) uniform PushConstants {
+    ivec3 sweep_direction;
+} push;
+
+#include "../util.glsl"
+
+
+
+void main() {
+    ivec3 pos;
+    switch (gl_GlobalInvocationID.z) {
+        case 0:
+            pos = ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, (push.sweep_direction.z == 1)? 0 : CHUNK_SIZE - 1);
+            break;
+        case 1:
+            pos = ivec3(gl_GlobalInvocationID.x, (push.sweep_direction.y == 1)? 0 : CHUNK_SIZE - 1, gl_GlobalInvocationID.y);
+            break;
+        case 2:
+            pos = ivec3((push.sweep_direction.x == 1)? 0 : CHUNK_SIZE - 1, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+            break;
+    }
+
+    
+    uint stored_dist = 200;
+
+    debugPrintfEXT("starting sweep from block: %v3i in direction: %v3i", pos, push.sweep_direction);
+    while(is_in_chunk_bounds(pos)) {
+        stored_dist = min(imageLoad(distance_data, pos).x, stored_dist + 1);
+        imageStore(distance_data, pos, uvec4(stored_dist));
+        pos += push.sweep_direction;
+    }
+}

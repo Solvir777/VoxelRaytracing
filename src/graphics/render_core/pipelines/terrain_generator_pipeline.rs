@@ -14,7 +14,6 @@ pub struct TerrainGeneratorPipeline {
 }
 impl TerrainGeneratorPipeline {
     pub fn new(device: Arc<Device>) -> Self{
-
         let compute_shader = shaders::terrain_gen::load(device.clone()).unwrap();
         let entry_point = compute_shader.entry_point("main").unwrap();
         let stage_info = PipelineShaderStageCreateInfo::new(entry_point);

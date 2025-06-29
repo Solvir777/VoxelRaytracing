@@ -4,7 +4,7 @@ use crate::graphics::render_core::swapchain_resources::SwapchainResources;
 use crate::graphics::vulkano_core::VulkanoCore;
 use crate::settings::Settings;
 
-mod pipelines;
+pub mod pipelines;
 pub mod swapchain_resources;
 
 pub struct RenderCore {

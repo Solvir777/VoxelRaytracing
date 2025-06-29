@@ -63,3 +63,7 @@ uint chebyshev_length(ivec3 pos) {
         abs(pos.z)
     );
 }
+
+bool is_in_chunk_bounds(ivec3 pos) {
+    return all(lessThanEqual(ivec3(0), pos)) && all(lessThan(pos, ivec3(CHUNK_SIZE)));
+}
