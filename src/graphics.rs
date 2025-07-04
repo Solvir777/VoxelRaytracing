@@ -17,7 +17,7 @@ use nalgebra::Vector3;
 mod allocators;
 mod buffers;
 mod render_core;
-mod vulkano_core;
+pub mod vulkano_core;
 
 pub mod terrain_functionality;
 

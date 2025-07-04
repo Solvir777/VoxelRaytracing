@@ -91,7 +91,9 @@ impl RaytracePipeline {
                         WriteDescriptorSet::buffer(1, buffers.player_raycast_buffer.clone()),
                         WriteDescriptorSet::buffer(2, buffers.gpu_graphics_settings_buffer.clone()),
                         WriteDescriptorSet::image_view_array(3, 0, buffers.get_chunk_image_views()),
-                        WriteDescriptorSet::image_view_array(4, 0, buffers.get_distance_image_views())
+                        WriteDescriptorSet::image_view_array(4, 0, buffers.get_distance_image_views()),
+                        WriteDescriptorSet::image_view(5, buffers.textures.image_view.clone()),
+                        WriteDescriptorSet::sampler(6, buffers.textures.sampler.clone()),
                     ],
                     [],
                 )

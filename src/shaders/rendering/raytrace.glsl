@@ -11,7 +11,8 @@ layout(set = 0, binding = 2) readonly uniform GpuGraphicsSettings{
 } settings;
 layout(r16ui, set = 0, binding = 3) readonly uniform uimage3D block_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
 layout(r8ui, set = 0, binding = 4) readonly uniform uimage3D distance_data[(render_distance * 2 + 1) * (render_distance * 2 + 1) * (render_distance * 2 + 1)];
-
+layout(set = 0, binding = 5) uniform texture2DArray textures;
+layout(set = 0, binding = 6) uniform sampler texture_sampler;
 
 
 layout(push_constant) uniform PushConstants {
@@ -149,7 +150,9 @@ vec3 raycast() {
             looking_at.hit_normal = surface_normal;
             looking_at.block_id = block_id;
         }
-        return surface_normal + 0.5 * vec3(sin(floor(hit_point.x + 0.001) * 2.), sin(floor(hit_point.y + 0.001) * 2.), sin((floor(hit_point.z + 0.001)) * 2.));
+        vec2 texture_point = fract(vec2(hit_point.x, -hit_point.y));
+        vec3 color = texture(sampler2DArray(textures, texture_sampler), vec3(texture_point, 0)).xyz;
+        return color;
     }
 
     return vec3(.51, 0.7, 0.9);

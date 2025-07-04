@@ -10,6 +10,7 @@ implement better fix to distance field artifacts
 fix overwriting solid blocks distance values in sweep algorithm setup
 highlight outline of targeted block
 profiling for higher resolutions
+check Windows compatibility
 
 DONE:
 chebyshev distance accelerated rendering

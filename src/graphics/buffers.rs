@@ -1,6 +1,7 @@
 mod gpu_graphics_settings;
 
 mod looking_at;
+mod textures;
 
 use crate::graphics::Graphics;
 use crate::graphics::vulkano_core::VulkanoCore;
@@ -13,8 +14,11 @@ use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
+use crate::graphics::buffers::textures::Textures;
+use crate::textures::create_block_texture_view;
 
 pub struct Buffers {
+    pub textures: Textures,
     pub block_data_buffers: Box<[Arc<Image>]>,
     pub distance_data_buffers: Box<[Arc<Image>]>,
     pub player_raycast_buffer: Subbuffer<LookingAtBlock>,
@@ -41,6 +45,7 @@ impl Buffers {
         let distance_data_buffers = create_distance_data_buffers(vulkano_core, &graphics_settings);
 
         Self {
+            textures: Textures::new(vulkano_core),
             distance_data_buffers,
             block_data_buffers,
             player_raycast_buffer,

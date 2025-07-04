@@ -1,8 +1,11 @@
+#![feature(variant_count)]
+
 mod game_state;
 mod graphics;
 mod input_state;
 mod settings;
 pub mod shaders;
+mod textures;
 
 use crate::game_state::GameState;
 use crate::game_state::terrain::block::Block;
