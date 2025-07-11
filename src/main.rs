@@ -37,7 +37,7 @@ fn main() {
             *control_flow = winit::event_loop::ControlFlow::Exit;
         }
         if input_state.is_key_pressed(winit::event::VirtualKeyCode::Tab, PressState::Down) {
-            println!("toggling confined state");
+            println!("toggling cursor confine");
             graphics.toggle_confine();
         }
         player_actions(game_state, graphics, input_state);
@@ -46,7 +46,7 @@ fn main() {
             graphics.add_pov(0.5);
         }
         if input_state.is_key_pressed(winit::event::VirtualKeyCode::Down, PressState::Held) {
-            graphics.add_pov(- 0.5);
+            graphics.add_pov(-0.5);
         }
         game_state.update(&input_state, &graphics.settings, delta_time);
     };

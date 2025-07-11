@@ -150,11 +150,33 @@ vec3 raycast() {
             looking_at.hit_normal = surface_normal;
             looking_at.block_id = block_id;
         }
-        vec2 texture_point = fract(vec2(hit_point.x, -hit_point.y));
-        vec3 color = texture(sampler2DArray(textures, texture_sampler), vec3(texture_point, 0)).xyz;
+
+        vec2 uv = vec2(0);
+        uint side = 1;
+        if(surface_normal.y == -1.) {
+            uv = hit_point.xz;
+            side = 2;
+        }
+        else if(surface_normal.y == 1.) {
+            uv = hit_point.xz;
+            side = 0;
+        }
+        else if (surface_normal.x == -1.) {
+            uv = -hit_point.zy;
+        }
+        else if (surface_normal.x == 1.) {
+            uv = -hit_point.zy;
+        }
+        else if (surface_normal.z == -1.) {
+            uv = -hit_point.xy;
+        }
+        else if (surface_normal.z == 1.) {
+            uv = -hit_point.xy;
+        }
+        vec3 color = texture(sampler2DArray(textures, texture_sampler), vec3(fract(uv), 3 * (block_id - 1) + side)).xyz;
         return color;
     }
 
-    return vec3(.51, 0.7, 0.9);
+    return vec3(.5, 0.7, 0.9);
 }
 

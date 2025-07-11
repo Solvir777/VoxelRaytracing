@@ -45,9 +45,9 @@ fn create_texture_image(vulkano_core: &VulkanoCore) -> Arc<Image> {
         let mut image_data = &mut *upload_buffer.write().unwrap();
 
         for png_bytes in [
+            include_bytes!("blocks/grass_top.png").as_slice(),
             include_bytes!("blocks/grass_side.png").as_slice(),
-            include_bytes!("blocks/grass_side.png").as_slice(),
-            include_bytes!("blocks/grass_side.png").as_slice(),
+            include_bytes!("blocks/grass_bottom.png").as_slice(),
         ] {
             let decoder = png::Decoder::new(png_bytes);
             let mut reader = decoder.read_info().unwrap();

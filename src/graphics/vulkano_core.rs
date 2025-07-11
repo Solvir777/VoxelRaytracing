@@ -45,7 +45,7 @@ impl VulkanoCore {
 
         let window = Arc::new(
             winit::window::WindowBuilder::new()
-                .with_inner_size(winit::dpi::PhysicalSize { width: 1600, height: 900 })
+                .with_inner_size(winit::dpi::PhysicalSize { width: 800, height: 600 })
                 .build(&event_loop)
                 .unwrap(),
         );
