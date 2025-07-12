@@ -62,7 +62,7 @@ fn player_actions(game_state: &mut GameState, graphics: &mut Graphics, input_sta
             as Vector3<i32>;
         game_state
             .terrain
-            .place_block(graphics, pos, Block::SolidBlock(SolidBlock::Grass))
+            .place_block(graphics, pos, Block::SolidBlock(SolidBlock::Stone))
     }
     if input_state.is_mouse_pressed(MouseButton::Right, PressState::Held)
         && let Some(block_hit) = graphics.what_is_bro_looking_at()

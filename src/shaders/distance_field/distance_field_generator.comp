@@ -1,7 +1,8 @@
 #version 460
 #extension GL_EXT_debug_printf : enable
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 3) in;
-layout(r8ui, set = 0, binding = 0) uniform uimage3D distance_data;
+layout(r16ui, set = 0, binding = 0) uniform uimage3D block_data;
+layout(r8ui, set = 0, binding = 1) uniform uimage3D distance_data;
 layout(push_constant) uniform PushConstants {
     ivec3 sweep_direction;
 } push;
@@ -26,8 +27,10 @@ void main() {
     
     uint stored_dist = 0;
     while(is_in_chunk_bounds(pos)) {
-        stored_dist = min(imageLoad(distance_data, pos).x, stored_dist + 1);
-        imageStore(distance_data, pos, uvec4(stored_dist));
+        if(imageLoad(block_data, pos).x == 0) {
+            stored_dist = min(imageLoad(distance_data, pos).x, stored_dist + 1);
+            imageStore(distance_data, pos, uvec4(stored_dist));
+        }
         pos += push.sweep_direction;
     }
 }

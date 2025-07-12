@@ -129,6 +129,12 @@ fn execute_sweeps(graphics: &mut Graphics, chunk_position: Vector3<i32>) {
             WriteDescriptorSet::image_view(
                 0,
                 ImageView::new_default(
+                    graphics.render_core.buffers.block_data_buffers[chunk_buffer_index(chunk_position, &graphics.settings)].clone()
+                ).unwrap()
+            ),
+            WriteDescriptorSet::image_view(
+                1,
+                ImageView::new_default(
                     graphics.render_core.buffers.distance_data_buffers[chunk_buffer_index(chunk_position, &graphics.settings)].clone()
                 ).unwrap()
             )

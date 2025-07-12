@@ -7,7 +7,6 @@ improve generation function
 storing/loading scenes
 different block types & textures
 implement better fix to distance field artifacts
-fix overwriting solid blocks distance values in sweep algorithm setup
 highlight outline of targeted block
 profiling for higher resolutions
 check Windows compatibility
@@ -19,3 +18,4 @@ overhaul chunk management (multiple chunk images rather than one)
 descructible/buildable Terrain
 cpu side chunks as host_local buffers
 fov
+fix overwriting solid blocks distance values in sweep algorithm setup

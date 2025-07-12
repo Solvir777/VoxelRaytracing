@@ -19,6 +19,8 @@ layout(push_constant) uniform PushConstants {
     mat4 cam_transform;
 } push;
 
+const vec3 sun_ray = normalize(vec3(0.267, 0.886, -0.16));
+
 
 #include "../util.glsl"
 
@@ -130,7 +132,57 @@ bool single_ray_basic(in vec3 ro, in vec3 rd, out uint block_id, out vec3 surfac
     return false;
 }
 
+vec4 get_texture(uint block_id, vec3 hit_normal, vec3 position) {
+    vec2 uv;
+    uint side = 1;
+    if(hit_normal.y == 0.) {
+        uv = abs(hit_normal.x) == 1. ? position.zy : position.xy;
+    }
+    else {
+        uv = position.xz;
+        side = hit_normal.y > 0. ? 0 : 2;
+    }
 
+    return texture(sampler2DArray(textures, texture_sampler), vec3(fract(-uv), 3 * (block_id - 1) + side));
+}
+
+vec3 raycast() {
+    const vec2 render_img_size = imageSize(render_target).xy;
+    if (gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
+        looking_at.block_id = 0;
+    }
+    const vec2 norm_coordinates = vec2(((gl_GlobalInvocationID.xy) / render_img_size.x) - vec2(0.5, render_img_size.y / render_img_size.x * 0.5));
+    vec3 rd = normalize((vec4(norm_coordinates * tan(settings.fov / 2.), 1., 1.) * push.cam_transform).xyz);
+    vec3 ro = player_position;
+
+    uint block_id;
+    vec3 surface_normal;
+    vec3 hit_point;
+
+    float rest_multiplier = 1.;
+    vec3 color = vec3(0);
+    for(int i = 0; i < 5 && single_ray_df(ro, rd, block_id, surface_normal, hit_point); i++) {
+        if(i == 0) {
+            if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
+                looking_at.hit_point = hit_point;
+                looking_at.hit_normal = surface_normal;
+                looking_at.block_id = block_id;
+            }
+        }
+
+
+        ro = hit_point - rd * 0.0001;
+        rd = rd - 2 * dot(rd, surface_normal) * surface_normal;
+
+        vec4 tex = get_texture(block_id, surface_normal, hit_point);
+
+        color += rest_multiplier * tex.rgb;
+        rest_multiplier *= 1. - tex.a;
+    }
+    return color;
+}
+
+/*
 vec3 raycast() {
     const vec2 render_img_size = imageSize(render_target).xy;
     if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
@@ -145,11 +197,7 @@ vec3 raycast() {
     vec3 hit_point;
 
     if(single_ray_df(ro, rd, block_id, surface_normal, hit_point)) {
-        if(gl_GlobalInvocationID.x == render_img_size.x / 2 && gl_GlobalInvocationID.y == render_img_size.y / 2) {
-            looking_at.hit_point = hit_point;
-            looking_at.hit_normal = surface_normal;
-            looking_at.block_id = block_id;
-        }
+
 
         vec2 uv = vec2(0);
         uint side = 1;
@@ -161,22 +209,22 @@ vec3 raycast() {
             uv = hit_point.xz;
             side = 0;
         }
-        else if (surface_normal.x == -1.) {
+        else if (abs(surface_normal.x) == 1.) {
             uv = -hit_point.zy;
         }
-        else if (surface_normal.x == 1.) {
-            uv = -hit_point.zy;
-        }
-        else if (surface_normal.z == -1.) {
+        else if (abs(surface_normal.z) == 1.) {
             uv = -hit_point.xy;
         }
-        else if (surface_normal.z == 1.) {
-            uv = -hit_point.xy;
+        vec4 color = texture(sampler2DArray(textures, texture_sampler), vec3(fract(uv), 3 * (block_id - 1) + side));
+        vec3 _normal;
+        // lighting
+        if(single_ray_df(hit_point - rd * 0.0001, sun_ray, block_id, _normal, hit_point)) {
+            return color.xyz * 0.6;
         }
-        vec3 color = texture(sampler2DArray(textures, texture_sampler), vec3(fract(uv), 3 * (block_id - 1) + side)).xyz;
-        return color;
+        return color.xyz;
     }
 
-    return vec3(.5, 0.7, 0.9);
+    return vec3(0.5, 0.7, 0.9);
 }
 
+*/

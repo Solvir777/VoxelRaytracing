@@ -20,7 +20,7 @@ pub fn create_block_texture_view(vulkano_core: &VulkanoCore) -> Arc<ImageView> {
 
 fn create_texture_image(vulkano_core: &VulkanoCore) -> Arc<Image> {
     let format = Format::R8G8B8A8_SRGB;
-    const ARRAY_LAYERS: u32 = mem::variant_count::<SolidBlock>() as u32;
+    const ARRAY_LAYERS: u32 = mem::variant_count::<SolidBlock>() as u32 * 3;
 
     let buffer_size = format.block_size()
         * (TEXTURE_SIZE * TEXTURE_SIZE) as DeviceSize
@@ -48,6 +48,9 @@ fn create_texture_image(vulkano_core: &VulkanoCore) -> Arc<Image> {
             include_bytes!("blocks/grass_top.png").as_slice(),
             include_bytes!("blocks/grass_side.png").as_slice(),
             include_bytes!("blocks/grass_bottom.png").as_slice(),
+            include_bytes!("blocks/glass.png").as_slice(),
+            include_bytes!("blocks/glass.png").as_slice(),
+            include_bytes!("blocks/glass.png").as_slice(),
         ] {
             let decoder = png::Decoder::new(png_bytes);
             let mut reader = decoder.read_info().unwrap();

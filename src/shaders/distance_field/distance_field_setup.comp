@@ -8,6 +8,9 @@ layout(r8ui, set = 0, binding = 1) writeonly uniform uimage3D distance_data;
 void main() {
     bool flag = false;
     ivec3 self = ivec3(gl_GlobalInvocationID);
+    if(imageLoad(block_data, self).x > 0) { // if self is solid, dont change current voxel
+        return;
+    }
     for(int x = -1; x <= 1 && flag == false; x++) {
         for(int y = -1; y <= 1 && flag == false; y++) {
             for(int z = -1; z <= 1 && flag == false; z++) {
@@ -22,10 +25,10 @@ void main() {
 
 
 
-    if(flag) {
+    if(flag) { //if surrounding voxel is solid, set distance to 1
         imageStore(distance_data, self, uvec4(1));
     }
-    else {
+    else { //if neither self nor surrounding voxel is solid, set distance to max
         imageStore(distance_data, self, uvec4(200));
     }
 

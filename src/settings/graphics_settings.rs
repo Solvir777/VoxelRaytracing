@@ -5,10 +5,10 @@ pub struct GraphicsSettings {
 }
 
 impl GraphicsSettings {
-    pub(crate) fn standard() -> Self {
+    pub fn standard() -> Self {
         Self {
             field_of_view: 90.,
-            render_distance: 2,
+            render_distance: 3,
             level_of_detail_layers: 1,
         }
     }

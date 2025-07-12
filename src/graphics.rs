@@ -29,7 +29,7 @@ pub struct Graphics {
     cursor_confined: bool,
 }
 impl Graphics {
-    pub const CHUNK_SIZE: u32 = 32;
+    pub const CHUNK_SIZE: u32 = 64;
     pub const CHUNK_VOLUME: u32 =
         Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE * Graphics::CHUNK_SIZE;
     pub fn new(settings: Settings) -> (Self, EventLoop<()>) {
