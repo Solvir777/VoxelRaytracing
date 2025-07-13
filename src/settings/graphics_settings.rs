@@ -8,7 +8,7 @@ impl GraphicsSettings {
     pub fn standard() -> Self {
         Self {
             field_of_view: 90.,
-            render_distance: 3,
+            render_distance: 1,
             level_of_detail_layers: 1,
         }
     }

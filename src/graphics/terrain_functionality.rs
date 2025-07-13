@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use nalgebra::Vector3;
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::command_buffer::{BufferImageCopy, CommandBufferUsage, CopyBufferToImageInfo, PrimaryCommandBufferAbstract};
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::image::{Image, ImageAspects, ImageSubresourceLayers};
@@ -9,7 +9,7 @@ use vulkano::pipeline::Pipeline;
 use vulkano::{sync, DeviceSize};
 use vulkano::sync::GpuFuture;
 use crate::game_state::GameState;
-use crate::game_state::terrain::ChunkBuffer;
+use crate::game_state::terrain::{ChunkBuffer, ChunkData};
 use crate::graphics::{block_in_chunk_index, Graphics};
 use crate::shaders::terrain_gen;
 
@@ -191,5 +191,24 @@ impl Graphics {
     
     pub fn generate_distance_field(&mut self, chunk_position: Vector3<i32>) {
         crate::graphics::render_core::pipelines::terrain_distance_pipeline::execute(self, chunk_position);
+    }
+
+    pub fn chunk_from_data(&mut self, chunk_data: ChunkData) -> ChunkBuffer {
+        Buffer::from_data(
+            self.vulkano_core.allocators.memory.clone(),
+            BufferCreateInfo {
+                usage: BufferUsage::TRANSFER_SRC
+                    | BufferUsage::TRANSFER_DST
+                    | BufferUsage::STORAGE_BUFFER,
+                ..Default::default()
+            },
+            AllocationCreateInfo {
+                memory_type_filter: MemoryTypeFilter::PREFER_HOST
+                    | MemoryTypeFilter::HOST_RANDOM_ACCESS,
+                ..Default::default()
+            },
+            chunk_data
+        )
+            .unwrap()
     }
 }

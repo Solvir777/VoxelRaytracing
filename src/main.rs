@@ -20,8 +20,9 @@ use winit::event::MouseButton;
 fn main() {
     let settings = Settings::new();
 
-    let (graphics, event_loop) = Graphics::new(settings);
-    let game_state = GameState::new();
+    let (mut graphics, event_loop) = Graphics::new(settings);
+    //let game_state = GameState::new();
+    let game_state = GameState::load("saves/test.voxmap", &mut graphics);
     let input_state = InputState::new();
 
     let mut last_frame = Instant::now();
@@ -41,12 +42,10 @@ fn main() {
             graphics.toggle_confine();
         }
         player_actions(game_state, graphics, input_state);
-        
-        if input_state.is_key_pressed(winit::event::VirtualKeyCode::Up, PressState::Held) {
-            graphics.add_pov(0.5);
-        }
-        if input_state.is_key_pressed(winit::event::VirtualKeyCode::Down, PressState::Held) {
-            graphics.add_pov(-0.5);
+
+        if input_state.is_key_pressed(winit::event::VirtualKeyCode::P, PressState::Down) {
+            game_state.save(r"saves/test.voxmap");
+            println!("saved game state");
         }
         game_state.update(&input_state, &graphics.settings, delta_time);
     };

@@ -1,5 +1,6 @@
 mod player;
 pub mod terrain;
+mod load_store;
 
 use crate::game_state::player::Player;
 use crate::game_state::terrain::Terrain;
@@ -41,6 +42,15 @@ impl GameState {
         self.player
             .position
             .map(|x: f32| (x / Graphics::CHUNK_SIZE as f32).floor() as i32)
+    }
+    pub fn save(&self, file_name: &str) {
+        self.terrain.save_terrain(file_name);
+    }
+    pub fn load(file_name: &str, graphics: &mut Graphics) -> Self {
+        Self{
+            player: Player::new(),
+            terrain: Terrain::load(graphics, file_name),
+        }
     }
 }
 #[cfg(test)]
